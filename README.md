@@ -19,6 +19,41 @@ Node 24 or newer is required. The backend has **no runtime dependencies**. It us
 
 Configuration lives in `.env.local`; see `.env.example`. All secrets are read by the server only and never reach the browser.
 
+## Deploy
+
+The app is one always-on Node process: it holds a WebSocket to the launch feed, streams updates to
+browsers, runs the alert/trading workers and polls Telegram. It therefore needs a host that runs a
+container continuously with a persistent disk — Railway, Render, Fly.io or any VPS. **Serverless
+platforms (Vercel, Netlify Functions, Cloudflare Workers) cannot run it**: they have no long-lived
+process and no writable disk, so live detection, sessions and Telegram alerts would all fail.
+
+`Dockerfile` builds the UI and ships a runtime image with no npm dependencies (the server uses only
+Node built-ins). `railway.json` sets the health check and restart policy.
+
+**Railway:** New Project → Deploy from GitHub repo → add a Volume mounted at `/data` → set the
+variables below → deploy → Settings → Networking → Generate Domain. Keep it at **one replica**: two
+instances would open two launch streams and two Telegram pollers.
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` | 96 random hex chars |
+| `ENCRYPTION_KEY` | 96 random hex chars |
+| `DATABASE_PATH` | `/data/radar.db` |
+| `APP_URL` | the deployed URL, e.g. `https://your-app.up.railway.app` |
+| `TELEGRAM_BOT_TOKEN` | bot token from @BotFather |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` unless `RESEND_API_KEY` is set |
+| `SOLANA_RPC_URL` | optional dedicated RPC; without it holder lists are rate limited |
+
+Generate the two secrets with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+`PORT` is injected by the host and picked up automatically. After the first deploy, check
+`https://your-app/api/health` — it reports the data mode, stream state and token count.
+
 ## Architecture
 
 ```

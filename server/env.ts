@@ -35,7 +35,8 @@ const list = (v?: string) => (v ? v.split(',').map((s) => s.trim()).filter(Boole
 export const config = {
   isProd,
   port: Number(env.API_PORT ?? env.PORT ?? 8787),
-  host: env.HOST ?? '127.0.0.1',
+  // Containers (Railway, Render, Fly, Docker) must bind every interface; locally stay on loopback.
+  host: env.HOST ?? (isProd ? '0.0.0.0' : '127.0.0.1'),
   appUrl: (env.APP_URL ?? 'http://localhost:5173').replace(/\/$/, ''),
   corsOrigins: list(env.CORS_ORIGINS).length ? list(env.CORS_ORIGINS) : [env.APP_URL ?? 'http://localhost:5173', 'http://localhost:4173'],
   dbPath: env.DATABASE_PATH ?? 'data/radar.db',

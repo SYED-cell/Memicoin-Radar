@@ -172,7 +172,7 @@ export function applyCors(req: IncomingMessage, res: ServerResponse): boolean {
   }
   const method = req.method ?? 'GET';
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-    const sameOrigin = !origin || config.corsOrigins.includes(origin) || origin === `http://${req.headers.host}`;
+    const sameOrigin = !origin || config.corsOrigins.includes(origin) || origin === `http://${req.headers.host}` || origin === `https://${req.headers.host}`;
     const hasHeader = req.headers['x-requested-with'] === 'radar';
     if (!sameOrigin || !hasHeader) return false;
   }
