@@ -126,6 +126,12 @@ export async function signup(ctx: Ctx, input: { name: string; email: string; pas
   const now = Date.now();
   const hash = await hashPassword(input.password);
   run('INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', id, input.email, input.name, hash, now, now);
+  // With verification switched off there is nothing to confirm, so no email provider is needed.
+  if (!config.requireEmailVerification) {
+    run('UPDATE users SET email_verified = 1 WHERE id = ?', id);
+    issueSession(ctx, id);
+    return { user: getUser(id)!, devLink: undefined };
+  }
   const mail = await sendEmailToken(id, input.email, 'verify');
   issueSession(ctx, id);
   return { user: getUser(id)!, devLink: mail.devLink };

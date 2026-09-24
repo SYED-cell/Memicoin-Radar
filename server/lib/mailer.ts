@@ -1,4 +1,5 @@
 import { config } from '../env.ts';
+import { HttpError } from './http.ts';
 import { log } from './log.ts';
 
 export interface MailResult {
@@ -21,11 +22,14 @@ export async function sendMail(to: string, subject: string, text: string, link: 
     });
     if (!res.ok) {
       log.error('mail', `Resend failed (${res.status}): ${await res.text()}`);
-      throw new Error('Email delivery failed');
+      throw new HttpError(502, 'Could not send the email. Please try again in a moment.', 'mail_failed');
     }
     return { delivered: true };
   }
-  if (config.isProd) throw new Error('Email provider not configured (RESEND_API_KEY)');
+  if (config.isProd) {
+    log.error('mail', 'RESEND_API_KEY is not set — set it, or set REQUIRE_EMAIL_VERIFICATION=false to run without email.');
+    throw new HttpError(503, 'Email is not configured on this server, so this step cannot be completed.', 'mail_unconfigured');
+  }
   log.warn('mail', `[DEV — no email provider] ${subject} for ${to}: ${link}`);
   return { delivered: false, devLink: link };
 }
