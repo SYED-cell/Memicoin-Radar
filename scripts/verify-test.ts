@@ -1,6 +1,7 @@
 /**
  * Unit checks for the strict verified-coin filter. Usage: node scripts/verify-test.ts
  */
+import { curveMarket, decodeCurve } from '../shared/bondingCurve.ts';
 import { createToken, evaluate } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
 import { formatVerifiedTelegram, STRICT, verifyToken, type OutcomeSample } from '../shared/verification.ts';
@@ -140,6 +141,34 @@ const msgWatch = formatVerifiedTelegram(v5, 'https://radar.example');
 check('non-tradeable report states its status and does not claim all checks passed', msgWatch.includes('STATUS: WATCH') && !msgWatch.includes('All '), msgWatch.slice(0, 200));
 const msgAvoid = formatVerifiedTelegram(v2);
 check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STATUS: AVOID') && msgAvoid.includes('❌') && msgAvoid.trimEnd().endsWith('Meme coins can lose all value quickly.'));
+
+// 8. Bonding-curve decoding and USD pricing (the source of live market caps).
+{
+  const buf = Buffer.alloc(49);
+  // A freshly created pump.fun curve: 1,073,000,000 virtual tokens against 30 virtual SOL.
+  buf.writeBigUInt64LE(1_073_000_000_000_000n, 8); // virtual token reserves (6 decimals)
+  buf.writeBigUInt64LE(30_000_000_000n, 16); // virtual SOL reserves (lamports)
+  buf.writeBigUInt64LE(793_100_000_000_000n, 24); // real token reserves
+  buf.writeBigUInt64LE(0n, 32); // real SOL reserves
+  buf.writeBigUInt64LE(1_000_000_000_000_000n, 40); // total supply
+  buf[48] = 0; // not complete
+  const state = decodeCurve(buf);
+  check('curve decodes reserves and supply', state?.totalSupply === 1_000_000_000_000_000 && state?.virtualSolReserves === 30_000_000_000, state);
+  const m = curveMarket(state!, 120);
+  // 30 SOL of virtual reserves against the full supply ≈ 30 × SOL price.
+  check('fresh curve prices the supply at ~30 SOL', Math.abs(m!.marketCapUsd - 30 * 120 * (1e9 / 1_073_000_000)) < 1, m?.marketCapUsd);
+  check('untouched curve reports 0% bonding progress', m!.bondingProgress === 0, m?.bondingProgress);
+
+  const half = Buffer.from(buf);
+  half.writeBigUInt64LE(396_550_000_000_000n, 24); // half the curve tokens sold
+  half.writeBigUInt64LE(15_000_000_000n, 32); // 15 SOL raised
+  const mh = curveMarket(decodeCurve(half)!, 120)!;
+  check('half-sold curve reports ~50% progress', Math.abs(mh.bondingProgress - 50) < 0.1, mh.bondingProgress);
+  check('liquidity counts both sides of the pool', Math.abs(mh.liquidityUsd - 15 * 120 * 2) < 1, mh.liquidityUsd);
+
+  check('garbage account is rejected', decodeCurve(Buffer.alloc(20)) === null && decodeCurve(Buffer.alloc(49)) === null);
+  check('curve pricing needs a SOL price', curveMarket(state!, 0) === null);
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll verification checks passed');
 process.exit(failures ? 1 : 0);

@@ -1,3 +1,4 @@
+import { decodeCurve, PUMP_PROGRAM_ID, type CurveState } from '../../../shared/bondingCurve.ts';
 import { ipfsUrl } from '../../../shared/ipfs.ts';
 import { config } from '../../env.ts';
 import { HttpError, registerSource, requestJson } from '../httpClient.ts';
@@ -130,6 +131,28 @@ export const solanaRpc: ChainProvider = {
     const url = ipfsUrl(uri, config.ipfsGateway);
     if (!url || !/^https:\/\//.test(url)) return null;
     return requestJson<Record<string, unknown>>(url, { source: IPFS, ttl: 3_600_000, timeoutMs: 8000, retries: 1 });
+  },
+
+  /** One getMultipleAccounts call per batch (100 max per Solana RPC), cached briefly so prices stay live. */
+  async getBondingCurves(addresses) {
+    const out = new Map<string, CurveState>();
+    for (let i = 0; i < addresses.length; i += 100) {
+      const chunk = addresses.slice(i, i + 100);
+      const res = await rpc<{ value: ({ data: [string, string]; owner: string } | null)[] }>(
+        'getMultipleAccounts',
+        [chunk, { encoding: 'base64', commitment: 'confirmed' }],
+        4_000,
+      );
+      chunk.forEach((address, n) => {
+        const account = res.value[n];
+        // Launch events occasionally carry a non-curve address (a fee account, another launchpad's
+        // pool). Pricing a token from one of those would be wrong, so require the pump.fun program.
+        if (!account?.data?.[0] || account.owner !== PUMP_PROGRAM_ID) return;
+        const state = decodeCurve(Buffer.from(account.data[0], 'base64'));
+        if (state) out.set(address, state);
+      });
+    }
+    return out;
   },
 };
 

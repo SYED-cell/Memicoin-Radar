@@ -1,4 +1,5 @@
 import type { DataSource, HistoryPoint, LaunchEvent, MigrationEvent, Token, TokenMarketData, Trade, TradeEvent } from './types.ts';
+import type { CurveMarket } from './bondingCurve.ts';
 import { hashString } from './random.ts';
 import { explainChange } from './aiService.ts';
 import { computeOpportunity, deriveConfidence, deriveMomentum, derivePhase, deriveSignal } from './opportunityEngine.ts';
@@ -186,6 +187,38 @@ export function applyMarket(t: Token, m: TokenMarketData, now = Date.now(), init
   next.priceChange24h = s24?.priceChange ?? priceChangeFromHistory(next, 86_400_000, now) ?? (next.history[0] ? (next.price / next.history[0].price - 1) * 100 : 0);
   if (next.priceChange5m === null) next.priceChange5m = priceChangeFromHistory(next, 300_000, now);
   if (next.priceChange1h === null) next.priceChange1h = priceChangeFromHistory(next, 3_600_000, now);
+  return next;
+}
+
+/**
+ * Applies live bonding-curve reserves read from the chain. This is the only source of a real,
+ * current USD market cap for a launch no market-data provider covers yet, so it also records a
+ * history point and derives the short-window price changes from it.
+ */
+export function applyCurve(t: Token, c: CurveMarket, now = Date.now()): Token {
+  const next: Token = {
+    ...t,
+    price: c.price,
+    marketCap: c.marketCapUsd,
+    fdv: c.marketCapUsd,
+    // A graduated token's liquidity lives in its pool, which market data reports instead.
+    liquidity: c.complete ? t.liquidity : c.liquidityUsd,
+    graduated: t.graduated || c.complete,
+    bondingProgress: c.bondingProgress,
+    marketUpdatedAt: now,
+    updatedAt: now,
+  };
+  const last = t.history[t.history.length - 1];
+  // Curve reads are frequent; record a point only when the chart would actually change, so the
+  // history keeps its resolution without filling up with zero-volume duplicates.
+  const worthRecording = !last || now - last.t >= 15_000 || Math.abs(next.price / (last.price || next.price) - 1) > 0.02;
+  if (next.price > 0 && worthRecording) {
+    next.history = pushHistory(t.history, point(now, next.price, next.marketCap, next.liquidity, 0, 0, 0, next.holders));
+  }
+  if (last && last.liquidity > 0) next.liquidityChange5m = ((next.liquidity - last.liquidity) / last.liquidity) * 100;
+  next.priceChange5m = priceChangeFromHistory(next, 300_000, now) ?? t.priceChange5m;
+  next.priceChange1h = priceChangeFromHistory(next, 3_600_000, now) ?? t.priceChange1h;
+  next.priceChange24h = priceChangeFromHistory(next, 86_400_000, now) ?? next.priceChange24h;
   return next;
 }
 

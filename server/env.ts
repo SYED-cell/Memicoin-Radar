@@ -69,6 +69,9 @@ export const config = {
     activeWindowMs: 20 * 60_000,
     tractionMcapUsd: 12_000,
     securityScanPerMinute: 30,
+    // On-chain pricing: one getMultipleAccounts call per tick (100 accounts max per Solana RPC).
+    curveIntervalMs: 6000,
+    curveBatchSize: 100,
   },
 };
 

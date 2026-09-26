@@ -428,4 +428,8 @@ export const mockChain: ChainProvider = {
   async getMetadataJson() {
     return null;
   },
+  /** Demo mode already prices its tokens directly, so no curve accounts are exposed. */
+  async getBondingCurves() {
+    return new Map();
+  },
 };

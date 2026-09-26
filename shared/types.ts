@@ -412,6 +412,8 @@ export interface ConnectionHealth {
   reconnectAttempts: number;
   lastEventAt: number | null;
   launchesDetected: number;
+  /** Bonding-curve accounts read from the chain for live USD pricing. */
+  curveReads?: number;
   market: SourceHealth;
   rpc: SourceHealth;
   rpcKind: 'dedicated' | 'public' | 'unknown';

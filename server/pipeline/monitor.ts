@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { applyMarket, applyMetadata, applyMigration, applySecurity, applyTrade, compactToken, createToken, evaluate, tokenFromMarket } from '../../shared/tokenService.ts';
+import { curveMarket } from '../../shared/bondingCurve.ts';
+import { applyCurve, applyMarket, applyMetadata, applyMigration, applySecurity, applyTrade, compactToken, createToken, evaluate, tokenFromMarket } from '../../shared/tokenService.ts';
 import type { ConnectionHealth, LaunchEvent, StreamState, Token } from '../../shared/types.ts';
 import { all, run, tx } from '../db.ts';
 import { config } from '../env.ts';
@@ -27,6 +28,10 @@ class Monitor extends EventEmitter {
   readonly mode = config.dataMode;
   private tokens = new Map<string, Token>();
   private lastPolled = new Map<string, number>();
+  private lastCurveRead = new Map<string, number>();
+  private curveMisses = new Map<string, number>();
+  /** Tokens whose recorded curve address does not resolve to a readable pump.fun curve. */
+  private noCurve = new Set<string>();
   private scanned = new Set<string>();
   private scanQueue: string[] = [];
   private pinned = new Set<string>();
@@ -90,6 +95,8 @@ class Monitor extends EventEmitter {
     void this.pollRecent(true);
     this.timers.push(
       setInterval(() => void this.pollMarket(), config.monitor.pollIntervalMs),
+      // Live USD market cap straight from each pump.fun bonding curve.
+      setInterval(() => void this.pollCurves(), config.monitor.curveIntervalMs),
       setInterval(() => void this.refreshSolPrice(), 30_000),
       // Recent-launch polling: backfill + detection fallback when the stream is down.
       setInterval(() => void this.pollRecent(false), 15_000),
@@ -198,6 +205,44 @@ class Monitor extends EventEmitter {
       this.health.fallbackReason = this.health.stream === 'open' ? null : this.health.fallbackReason;
     } catch (err) {
       log.warn('market', `batch poll failed (${batch.length} tokens)`, err);
+    }
+  }
+
+  /**
+   * Reads the bonding curve of every tracked pre-graduation token and applies the real USD market
+   * cap, price and pool liquidity. Market-data providers do not cover brand-new launches, so
+   * without this a token would keep showing the figures it had at launch.
+   */
+  private async pollCurves() {
+    if (!this.solPrice) return;
+    const now = Date.now();
+    const pending = [...this.tokens.values()].filter((t) => t.bondingCurve && !this.noCurve.has(t.id) && !t.graduated && this.isActive(t, now));
+    if (!pending.length) return;
+    // Oldest reading first, so every token refreshes in turn when there are more than one batch.
+    const batch = pending
+      .sort((a, b) => (this.lastCurveRead.get(a.id) ?? 0) - (this.lastCurveRead.get(b.id) ?? 0))
+      .slice(0, config.monitor.curveBatchSize);
+    try {
+      const curves = await this.chain.getBondingCurves(batch.map((t) => t.bondingCurve!));
+      for (const t of batch) {
+        this.lastCurveRead.set(t.id, now);
+        const state = curves.get(t.bondingCurve!);
+        const market = state && curveMarket(state, this.solPrice);
+        if (!market) {
+          // Some launch events carry an address that is not this token's curve; stop retrying it.
+          const misses = (this.curveMisses.get(t.id) ?? 0) + 1;
+          this.curveMisses.set(t.id, misses);
+          if (misses >= 3) this.noCurve.add(t.id);
+          continue;
+        }
+        this.curveMisses.delete(t.id);
+        const prev = this.tokens.get(t.id);
+        if (!prev) continue;
+        this.commit(prev, evaluate(applyCurve(prev, market, Date.now()), prev));
+      }
+      this.health.curveReads = (this.health.curveReads ?? 0) + batch.length;
+    } catch (err) {
+      log.warn('market', `bonding-curve read failed (${batch.length} tokens)`, err);
     }
   }
 

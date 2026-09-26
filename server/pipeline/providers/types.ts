@@ -1,3 +1,4 @@
+import type { CurveState } from '../../../shared/bondingCurve.ts';
 import type { LaunchEvent, MigrationEvent, StreamState, TokenMarketData, TradeEvent } from '../../../shared/types.ts';
 
 export interface StreamHandlers {
@@ -48,4 +49,6 @@ export interface ChainProvider {
   getBalanceSol(wallet: string): Promise<number>;
   getSignatures(wallet: string, limit: number): Promise<{ signature: string; blockTime: number | null; err: unknown }[]>;
   getMetadataJson(uri: string): Promise<Record<string, unknown> | null>;
+  /** Live pump.fun bonding-curve reserves, keyed by curve address. Missing/closed curves are omitted. */
+  getBondingCurves(addresses: string[]): Promise<Map<string, CurveState>>;
 }
