@@ -312,7 +312,7 @@ export default function DashboardPage() {
         }
       >
         {recentAlerts.length ? (
-          <ul className="grid gap-2 lg:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {recentAlerts.map((a) => (
               <AlertCard key={a.id} alert={a} token={getToken(a.tokenId)} now={now} onToggleRead={() => markRead(a.id, !a.read)} onDelete={() => deleteAlert(a.id)} />
             ))}

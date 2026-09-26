@@ -23,7 +23,7 @@ export function AlertCard({ alert, token, now, onToggleRead, onDelete }: AlertCa
   const sev = SEVERITY_STYLE[alert.severity];
   const SevIcon = sev.icon;
   return (
-    <li className={cn('group relative flex items-start gap-3 rounded-xl border p-3 transition sm:p-3.5', alert.read ? 'border-line bg-surface/60' : 'border-line-strong bg-surface-2/80')}>
+    <li className={cn('group relative flex min-w-0 items-start gap-3 rounded-xl border p-3 transition sm:p-3.5', alert.read ? 'border-line bg-surface/60' : 'border-line-strong bg-surface-2/80')}>
       {!alert.read && <span className="absolute top-3.5 left-1 size-1.5 rounded-full bg-primary" aria-label="Unread" />}
       {token ? <TokenAvatar token={token} /> : <span className="grid size-9 place-items-center rounded-full bg-surface-3">🪙</span>}
       <Link to={`/alerts/${alert.id}`} className="min-w-0 flex-1">
@@ -36,7 +36,7 @@ export function AlertCard({ alert, token, now, onToggleRead, onDelete }: AlertCa
           {alert.category === 'new_token' && <span className="chip border-primary/40 bg-primary/10 text-primary">NEW</span>}
         </div>
         <p className={cn('mt-0.5 text-sm', alert.read ? 'text-muted' : 'text-fg')}>{alert.title}</p>
-        <p className="truncate text-xs text-muted">
+        <p className="line-clamp-2 text-xs break-words text-muted">
           {alert.message} · <time dateTime={new Date(alert.createdAt).toISOString()}>{timeAgo(alert.createdAt, now)}</time>
         </p>
       </Link>
