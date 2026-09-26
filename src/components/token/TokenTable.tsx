@@ -29,9 +29,14 @@ interface Col {
 
 const COLS: Col[] = [
   { key: 'createdAt', label: 'Age', className: 'hidden w-16 lg:block', cell: (t) => <span className="num text-muted">{formatAge(t.createdAt)}</span> },
-  { key: 'price', label: 'Price', className: 'w-24', cell: (t) => <span key={t.updatedAt} className="num animate-flash rounded px-1">{t.price ? formatPrice(t.price) : '—'}</span> },
+  {
+    key: 'marketCap',
+    label: 'Market cap',
+    className: 'w-24',
+    cell: (t) => <span key={t.updatedAt} className="num animate-flash rounded px-1">{t.marketCap ? formatCompactUsd(t.marketCap) : '—'}</span>,
+  },
   { key: 'priceChange5m', label: '5m', className: 'w-16', cell: (t) => (t.priceChange5m === null ? <span className="text-subtle">—</span> : <ChangeText value={t.priceChange5m} />) },
-  { key: 'marketCap', label: 'MCap', className: 'hidden w-20 xl:block', cell: (t) => <span className="num text-muted">{t.marketCap ? formatCompactUsd(t.marketCap) : '—'}</span> },
+  { key: 'price', label: 'Price', className: 'hidden w-24 xl:block', cell: (t) => <span className="num text-muted">{t.price ? formatPrice(t.price) : '—'}</span> },
   { key: 'liquidity', label: 'Liq', className: 'hidden w-20 xl:block', cell: (t) => <span className="num text-muted">{t.liquidity ? formatCompactUsd(t.liquidity) : '—'}</span> },
   { key: 'volume5m', label: 'Vol 5m', className: 'hidden w-20 2xl:block', cell: (t) => <span className="num text-muted">{formatCompactUsd(t.volume5m)}</span> },
   { key: 'holders', label: 'Holders', className: 'hidden w-16 3xl:block', cell: (t) => <span className="num text-muted">{formatCompact(t.holders)}</span> },
@@ -61,11 +66,11 @@ export function TokenTable({ tokens, sort, dir, onSort, height = '70dvh' }: Toke
                 ${t.symbol} <NewBadge detectedAt={t.detectedAt} />
               </p>
               <p className="flex items-center gap-1.5 truncate text-[11px] text-muted">
-                <SignalBadge signal={t.signal} short /> {formatAge(t.createdAt)} · {t.marketCap ? formatCompactUsd(t.marketCap) : 'pricing…'}
+                <SignalBadge signal={t.signal} short /> {formatAge(t.createdAt)} · {t.liquidity ? `${formatCompactUsd(t.liquidity)} liq` : 'no liquidity'}
               </p>
             </div>
             <div className="shrink-0 text-right">
-              <p key={t.updatedAt} className="num animate-flash rounded px-1 text-sm">{t.price ? formatPrice(t.price) : '—'}</p>
+              <p key={t.updatedAt} className="num animate-flash rounded px-1 text-sm">{t.marketCap ? formatCompactUsd(t.marketCap) : 'pricing…'}</p>
               {t.priceChange5m !== null && <ChangeText value={t.priceChange5m} className="px-1 text-xs" />}
             </div>
           </Link>

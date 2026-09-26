@@ -170,9 +170,11 @@ function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) =>
         <Section className="xl:col-span-2">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
+              <p className="text-[11px] font-semibold tracking-wide text-muted uppercase">Market cap</p>
               <p key={token.updatedAt} className="num animate-flash rounded text-3xl font-bold tracking-tight sm:text-4xl">
-                {token.price ? formatPrice(token.price) : '—'}
+                {token.marketCap ? formatCompactUsd(token.marketCap) : '—'}
               </p>
+              {token.price > 0 && <p className="num mt-0.5 text-xs text-muted">{formatPrice(token.price)} per token</p>}
               <p className="mt-1 flex flex-wrap gap-x-3 text-sm">
                 {token.priceChange5m !== null && (
                   <span>

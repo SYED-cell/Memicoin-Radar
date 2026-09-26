@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMarket } from '../../context/MarketContext';
 import { matchesQuery, sortTokens } from '../../services/tokenFilters';
 import { cn } from '../../utils/cn';
-import { formatPrice } from '../../utils/format';
+import { formatCompactUsd } from '../../utils/format';
 import { ChangeText, TokenAvatar } from '../ui/primitives';
 
 /** Typeahead token search with keyboard navigation. Press "/" anywhere to focus. */
@@ -97,7 +97,7 @@ export function GlobalSearch({ className }: { className?: string }) {
                 <p className="truncate text-[11px] text-muted">{t.name}</p>
               </div>
               <div className="text-right">
-                <p className="num text-xs">{formatPrice(t.price)}</p>
+                <p className="num text-xs">{t.marketCap ? formatCompactUsd(t.marketCap) : '—'}</p>
                 <ChangeText value={t.priceChange24h} className="text-[11px]" />
               </div>
             </li>

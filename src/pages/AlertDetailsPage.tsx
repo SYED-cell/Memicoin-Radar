@@ -13,7 +13,7 @@ import { useMarket } from '../context/MarketContext';
 import { useToast } from '../context/ToastContext';
 import { AI_DISCLAIMER, analyze } from '../../shared/aiService.ts';
 import { cn } from '../utils/cn';
-import { formatAge, formatCompact, formatCompactUsd, formatDateTime, formatPrice, timeAgo } from '../utils/format';
+import { formatAge, formatCompact, formatCompactUsd, formatDateTime, timeAgo } from '../utils/format';
 
 export default function AlertDetailsPage() {
   const { id } = useParams();
@@ -82,7 +82,7 @@ export default function AlertDetailsPage() {
           <>
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <KeyValue label="Score" value={<ScoreBadge score={token.score} />} />
-              <KeyValue label="Price" value={formatPrice(token.price)} />
+              <KeyValue label="Market cap" value={token.marketCap ? formatCompactUsd(token.marketCap) : '—'} />
               <KeyValue label="Change (5m)" value={token.priceChange5m === null ? '—' : <ChangeText value={token.priceChange5m} />} />
               <KeyValue label="Liquidity" value={formatCompactUsd(token.liquidity)} />
               <KeyValue label="Volume" value={formatCompactUsd(token.volume24h)} />

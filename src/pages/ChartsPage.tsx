@@ -63,7 +63,7 @@ export default function ChartsPage() {
         title={`$${token.symbol} charts`}
         subtitle={
           <>
-            {formatPrice(token.price)} · {token.priceChange5m !== null && <ChangeText value={token.priceChange5m} />} 5m
+            {token.marketCap ? formatCompactUsd(token.marketCap) : '—'} mcap · {token.priceChange5m !== null && <ChangeText value={token.priceChange5m} />} 5m
           </>
         }
         actions={<TokenSwitcher token={token} basePath="/charts" />}
