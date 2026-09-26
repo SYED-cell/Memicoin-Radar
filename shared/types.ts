@@ -191,6 +191,8 @@ export interface Token {
   detectedAt: number;
   updatedAt: number;
   marketUpdatedAt: number | null;
+  /** When the on-chain bonding curve was last read; the curve owns pricing while this is fresh. */
+  curveAt?: number | null;
 
   creator?: string;
   bondingCurve?: string;

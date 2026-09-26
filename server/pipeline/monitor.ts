@@ -299,6 +299,8 @@ class Monitor extends EventEmitter {
         t.onChainVerifiedAt ??= null;
         t.metadataOk ??= null;
         t.verify ??= null;
+        // A reading from before the restart is stale, so providers lead again until the next read.
+        t.curveAt = null;
         if (t.source === this.health.mode) this.tokens.set(t.id, t);
       } catch {
         /* skip corrupt row */

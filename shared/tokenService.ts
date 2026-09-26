@@ -8,6 +8,8 @@ import { ipfsUrl } from './ipfs.ts';
 
 const PUMP_SUPPLY = 1_000_000_000;
 const MAX_HISTORY = 720;
+/** How long a bonding-curve reading stays authoritative over provider market data. */
+const CURVE_AUTHORITY_MS = 120_000;
 const MAX_TRADES = 150;
 const MAX_SCORE_HISTORY = 240;
 const LOGOS = ['🐸', '🐕', '🐱', '🚀', '🦊', '🐻', '🐵', '🦄', '🐉', '🐳', '🦈', '🐧', '🦉', '🐂', '🐺', '🤖'];
@@ -123,6 +125,7 @@ export function applyMarket(t: Token, m: TokenMarketData, now = Date.now(), init
   const s24 = m.stats24h ?? s1;
   const vol24 = s24 ? s24.buyVolume + s24.sellVolume : t.volume24h;
   const volumeDelta = initial ? 0 : Math.max(0, vol24 - t.volume24h);
+  const curveOwns = Boolean(t.curveAt && !t.graduated && !m.graduated && now - t.curveAt < CURVE_AUTHORITY_MS);
   const buyShare = s24 && vol24 > 0 ? s24.buyVolume / vol24 : 0.5;
   const organic =
     s24 && s24.buyOrganicVolume !== null && s24.sellOrganicVolume !== null && vol24 > 0
@@ -140,15 +143,18 @@ export function applyMarket(t: Token, m: TokenMarketData, now = Date.now(), init
     creator: t.creator ?? m.dev,
     graduated: t.graduated || m.graduated,
     pool: m.graduatedPool ?? t.pool,
-    bondingProgress: m.bondingProgress ?? (m.graduated ? 100 : t.bondingProgress),
-    price: m.price || t.price,
-    marketCap: m.mcap || t.marketCap,
-    fdv: m.fdv || m.mcap || t.fdv,
-    liquidity: m.liquidity,
+    bondingProgress: curveOwns ? t.bondingProgress : (m.bondingProgress ?? (m.graduated ? 100 : t.bondingProgress)),
+    // While a fresh curve reading exists it stays authoritative: it is both more current and a
+    // consistent definition. Mixing it with provider figures would make liquidity jump between
+    // the curve's withdrawable SOL and the provider's virtual reserves.
+    price: curveOwns ? t.price : m.price || t.price,
+    marketCap: curveOwns ? t.marketCap : m.mcap || t.marketCap,
+    fdv: curveOwns ? t.fdv : m.fdv || m.mcap || t.fdv,
+    liquidity: curveOwns ? t.liquidity : m.liquidity,
     supply: m.supply || t.supply,
     priceChange5m: s5?.priceChange ?? null,
     priceChange1h: s1?.priceChange ?? null,
-    liquidityChange5m: s5?.liquidityChange ?? null,
+    liquidityChange5m: curveOwns ? t.liquidityChange5m : (s5?.liquidityChange ?? null),
     volume5m: s5 ? s5.buyVolume + s5.sellVolume : 0,
     volume1h: s1 ? s1.buyVolume + s1.sellVolume : 0,
     volume24h: vol24,
@@ -206,6 +212,7 @@ export function applyCurve(t: Token, c: CurveMarket, now = Date.now()): Token {
     graduated: t.graduated || c.complete,
     bondingProgress: c.bondingProgress,
     marketUpdatedAt: now,
+    curveAt: c.complete ? null : now,
     updatedAt: now,
   };
   const last = t.history[t.history.length - 1];
