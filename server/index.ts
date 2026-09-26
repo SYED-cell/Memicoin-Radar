@@ -2,7 +2,8 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { config } from './env.ts';
-import { db } from './db.ts';
+import { startMaintenance } from './maintenance.ts';
+import { db, run } from './db.ts';
 import { applyCors, clientIp, HttpError, parseCookies, readJson, securityHeaders, sendJson, type Ctx } from './lib/http.ts';
 import { log } from './lib/log.ts';
 import { monitor } from './pipeline/monitor.ts';
@@ -92,9 +93,12 @@ async function main() {
   startTrading();
   startVerification();
   refreshPinned();
+  stopMaintenance = startMaintenance((sql, ...p) => run(sql, ...p), (msg) => log.warn('db', msg));
   await startTelegram();
   server.listen(config.port, config.host, () => log.info('server', `API listening on http://${config.host}:${config.port} (${config.isProd ? 'production' : 'development'})`));
 }
+
+let stopMaintenance: (() => void) | null = null;
 
 function shutdown(signal: string) {
   log.info('server', `${signal} received — shutting down`);
@@ -103,6 +107,7 @@ function shutdown(signal: string) {
   stopTrading();
   stopVerification();
   stopTelegram();
+  stopMaintenance?.();
   monitor.stop();
   server.close(() => {
     db.close();

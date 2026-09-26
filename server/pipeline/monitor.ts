@@ -322,9 +322,19 @@ class Monitor extends EventEmitter {
             t.updatedAt,
           );
         }
-        // Keep the table bounded to recent + pinned tokens.
+        // Hard cap on the cache: tracked tokens plus a small recent tail. A 24h window alone let
+        // ~7k rows a day pile up (hundreds of MB) because launches arrive faster than they expire.
         const keep = [...this.tokens.keys()];
-        if (keep.length) run(`DELETE FROM tokens WHERE mint NOT IN (${keep.map(() => '?').join(',')}) AND updated_at < ?`, ...keep, now - 24 * 3600_000);
+        if (keep.length) {
+          const placeholders = keep.map(() => '?').join(',');
+          run(
+            `DELETE FROM tokens WHERE mint NOT IN (${placeholders})
+               AND mint NOT IN (SELECT mint FROM tokens WHERE mint NOT IN (${placeholders}) ORDER BY updated_at DESC LIMIT ?)`,
+            ...keep,
+            ...keep,
+            config.monitor.maxTokens,
+          );
+        }
       });
     } catch (err) {
       log.error('monitor', 'persist failed', err);
