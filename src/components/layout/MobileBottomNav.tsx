@@ -4,7 +4,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useMarket } from '../../context/MarketContext';
 import { cn } from '../../utils/cn';
-import { MOBILE_PRIMARY, NAV_GROUPS } from './navItems';
+import { MOBILE_CENTER, MOBILE_LEFT, MOBILE_PRIMARY, MOBILE_RIGHT, NAV_GROUPS, type NavItem } from './navItems';
 
 /** Bottom tab bar for phones with a "More" sheet exposing every other route. */
 export function MobileBottomNav() {
@@ -25,7 +25,32 @@ export function MobileBottomNav() {
   }, [moreOpen]);
 
   const tab = (active: boolean) =>
-    cn('relative flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition', active ? 'text-primary' : 'text-muted');
+    cn('relative flex flex-1 flex-col items-center justify-end gap-1.5 px-1 pt-3 pb-3.5 text-[10px] font-medium transition', active ? 'text-fg' : 'text-muted');
+
+  /** Green pill under the active tab, matching the bar's rounded bottom edge. */
+  const indicator = <span className="absolute bottom-1 h-1 w-9 rounded-full bg-primary shadow-[0_0_10px_var(--color-primary)]" aria-hidden />;
+
+  const alertBadge = (item: NavItem) =>
+    item.badge === 'alerts' && unreadCount > 0 ? (
+      <span className="num absolute -top-1.5 -right-2.5 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+        {unreadCount > 99 ? '99+' : unreadCount}
+      </span>
+    ) : null;
+
+  const renderTab = (item: NavItem) => (
+    <NavLink key={item.to} to={item.to} className={({ isActive }) => tab(isActive)}>
+      {({ isActive }) => (
+        <>
+          <span className="relative">
+            <item.icon className="size-5" aria-hidden />
+            {alertBadge(item)}
+          </span>
+          <span className={cn('leading-none', isActive && 'font-semibold')}>{item.label}</span>
+          {isActive && indicator}
+        </>
+      )}
+    </NavLink>
+  );
 
   return (
     <>
@@ -74,30 +99,36 @@ export function MobileBottomNav() {
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden" aria-label="Primary">
-        <div className="flex">
-          {MOBILE_PRIMARY.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => tab(isActive)}>
-              {({ isActive }) => (
-                <>
-                  {isActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-primary" aria-hidden />}
-                  <span className="relative">
-                    <item.icon className="size-5" aria-hidden />
-                    {item.badge === 'alerts' && unreadCount > 0 && (
-                      <span className="num absolute -top-1.5 -right-2.5 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </span>
-                  {item.label}
-                </>
-              )}
-            </NavLink>
-          ))}
+      <nav className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(0.65rem+env(safe-area-inset-bottom))] md:hidden" aria-label="Primary">
+        <div className="mx-auto flex max-w-md items-end rounded-[26px] border border-line/70 bg-surface/92 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          {MOBILE_LEFT.map(renderTab)}
+
+          {/* Raised primary action: the live launch feed. */}
+          <NavLink to={MOBILE_CENTER.to} className={({ isActive }) => tab(isActive)}>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    'absolute -top-5 grid size-14 place-items-center rounded-full ring-4 ring-bg transition',
+                    isActive ? 'bg-primary shadow-[0_0_26px_rgba(34,224,122,0.55)]' : 'bg-primary/90 shadow-[0_0_18px_rgba(34,224,122,0.35)]',
+                  )}
+                  aria-hidden
+                >
+                  <MOBILE_CENTER.icon className="size-6 text-black" />
+                </span>
+                <span className="size-5" aria-hidden />
+                <span className={cn('leading-none', isActive && 'font-semibold')}>{MOBILE_CENTER.label}</span>
+                {isActive && indicator}
+              </>
+            )}
+          </NavLink>
+
+          {MOBILE_RIGHT.map(renderTab)}
+
           <button onClick={() => setMoreOpen(true)} className={tab(moreActive || moreOpen)} aria-haspopup="dialog" aria-expanded={moreOpen}>
-            {moreActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-primary" aria-hidden />}
             <MoreHorizontal className="size-5" aria-hidden />
-            More
+            <span className={cn('leading-none', (moreActive || moreOpen) && 'font-semibold')}>More</span>
+            {moreActive && indicator}
           </button>
         </div>
       </nav>

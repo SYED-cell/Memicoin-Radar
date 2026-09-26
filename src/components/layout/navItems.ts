@@ -9,6 +9,7 @@ import {
   HelpCircle,
   LayoutDashboard,
   PieChart,
+  Radar,
   Send,
   Settings,
   ShieldAlert,
@@ -66,9 +67,14 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export const MOBILE_PRIMARY: NavItem[] = [
+/** Phone tab bar: two tabs, the raised live-feed action, then one tab and the "More" sheet. */
+export const MOBILE_LEFT: NavItem[] = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { to: '/tokens', label: 'Tokens', icon: Coins },
-  { to: '/alerts', label: 'Alerts', icon: Bell, badge: 'alerts' },
   { to: '/watchlist', label: 'Watchlist', icon: Star },
 ];
+
+export const MOBILE_CENTER: NavItem = { to: '/tokens', label: 'Radar', icon: Radar };
+
+export const MOBILE_RIGHT: NavItem[] = [{ to: '/alerts', label: 'Alerts', icon: Bell, badge: 'alerts' }];
+
+export const MOBILE_PRIMARY: NavItem[] = [...MOBILE_LEFT, MOBILE_CENTER, ...MOBILE_RIGHT];

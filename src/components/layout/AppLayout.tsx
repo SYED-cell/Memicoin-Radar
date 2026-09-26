@@ -95,7 +95,7 @@ export function AppLayout() {
               </button>
             </div>
           )}
-          <main id="main" className="mx-auto w-full max-w-[2200px] min-w-0 flex-1 px-4 pt-4 pb-28 sm:pt-6 md:px-6 md:pb-10 3xl:px-10">
+          <main id="main" className="mx-auto w-full max-w-[2200px] min-w-0 flex-1 px-4 pt-4 pb-32 sm:pt-6 md:px-6 md:pb-10 3xl:px-10">
             {status === 'loading' ? (
               error ? (
                 <div role="alert" className="card flex flex-col items-center gap-3 p-10 text-center">
