@@ -131,6 +131,7 @@ router.get('/api/tokens/:mint', requireAuth, async (ctx) => {
   const mint = mintParam(ctx);
   const t = monitor.get(mint) ?? (await monitor.lookup(mint).catch(() => undefined));
   if (!t) throw new HttpError(404, 'Token not found on the radar or market data providers', 'not_found');
+  monitor.focus(mint); // someone has this page open: read its curve every second
   return { token: t, health: monitor.getHealth() };
 });
 

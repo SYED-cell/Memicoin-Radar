@@ -1,8 +1,13 @@
 import { Info } from 'lucide-react';
 import { useState } from 'react';
+import { DEFS as OPPORTUNITY_DEFS } from '../../../shared/opportunityEngine';
+import { DEFS as RISK_DEFS } from '../../../shared/riskEngine';
 import type { Breakdown } from '../../types';
 import { cn } from '../../utils/cn';
 import { ProgressBar } from '../ui/primitives';
+
+/** These texts are the same for every token, so the live feed leaves them out and we fill them in. */
+const FACTOR_HELP = new Map([...RISK_DEFS, ...OPPORTUNITY_DEFS].map((d) => [d.key, d.description]));
 
 /**
  * Transparent factor-by-factor view of a score. `kind` controls colour semantics:
@@ -37,7 +42,7 @@ export function FactorBreakdown({ breakdown, kind, dense = false }: { breakdown:
               <p className="mt-1 truncate text-[11px] text-muted" title={f.detail}>
                 {f.detail}
               </p>
-              {expanded && <p className="mt-1 animate-fade-in text-[11px] text-subtle">{f.description}</p>}
+              {expanded && <p className="mt-1 animate-fade-in text-[11px] text-subtle">{f.description || FACTOR_HELP.get(f.key)}</p>}
             </li>
           );
         })}

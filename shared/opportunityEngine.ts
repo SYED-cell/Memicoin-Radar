@@ -7,7 +7,7 @@ const volumeAccel = (t: Token): number | null => {
   return (t.volume5m * 12) / t.volume1h;
 };
 
-const DEFS: FactorDef<Token>[] = [
+export const DEFS: FactorDef<Token>[] = [
   {
     key: 'momentum',
     label: 'Momentum',

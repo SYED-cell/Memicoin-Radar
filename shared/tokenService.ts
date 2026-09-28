@@ -201,7 +201,7 @@ export function applyMarket(t: Token, m: TokenMarketData, now = Date.now(), init
  * current USD market cap for a launch no market-data provider covers yet, so it also records a
  * history point and derives the short-window price changes from it.
  */
-export function applyCurve(t: Token, c: CurveMarket, now = Date.now()): Token {
+export function applyCurve(t: Token, c: CurveMarket, now = Date.now(), dense = false): Token {
   const next: Token = {
     ...t,
     price: c.price,
@@ -218,7 +218,7 @@ export function applyCurve(t: Token, c: CurveMarket, now = Date.now()): Token {
   const last = t.history[t.history.length - 1];
   // Curve reads are frequent; record a point only when the chart would actually change, so the
   // history keeps its resolution without filling up with zero-volume duplicates.
-  const worthRecording = !last || now - last.t >= 15_000 || Math.abs(next.price / (last.price || next.price) - 1) > 0.02;
+  const worthRecording = dense || !last || now - last.t >= 15_000 || Math.abs(next.price / (last.price || next.price) - 1) > 0.02;
   if (next.price > 0 && worthRecording) {
     next.history = pushHistory(t.history, point(now, next.price, next.marketCap, next.liquidity, 0, 0, 0, next.holders));
   }

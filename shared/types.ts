@@ -115,7 +115,8 @@ export interface MigrationEvent {
 export interface Factor {
   key: string;
   label: string;
-  description: string;
+  /** Static help text; omitted on the live feed and filled in from the engine definitions. */
+  description?: string;
   weight: number;
   /** 0..1 intensity (risk: 1 = worst; opportunity: 1 = best). null = no data. */
   value: number | null;

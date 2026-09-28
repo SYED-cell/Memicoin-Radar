@@ -8,7 +8,7 @@ import type { Token } from '../types';
  * lightweight summaries, so this polls the REST endpoint while the tab is visible and falls back
  * to the live summary between polls.
  */
-export function useFullToken(mint: string | undefined, intervalMs = 4000) {
+export function useFullToken(mint: string | undefined, intervalMs = 1500) {
   const { getToken } = useMarket();
   const [full, setFull] = useState<Token | null>(null);
   const [error, setError] = useState<string | null>(null);

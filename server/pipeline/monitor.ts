@@ -29,6 +29,8 @@ class Monitor extends EventEmitter {
   private tokens = new Map<string, Token>();
   private lastPolled = new Map<string, number>();
   private lastCurveRead = new Map<string, number>();
+  /** Mints someone is looking at right now → expiry. These get a per-second on-chain read. */
+  private focused = new Map<string, number>();
   private curveMisses = new Map<string, number>();
   /** Tokens whose recorded curve address does not resolve to a readable pump.fun curve. */
   private noCurve = new Set<string>();
@@ -97,6 +99,8 @@ class Monitor extends EventEmitter {
       setInterval(() => void this.pollMarket(), config.monitor.pollIntervalMs),
       // Live USD market cap straight from each pump.fun bonding curve.
       setInterval(() => void this.pollCurves(), config.monitor.curveIntervalMs),
+      // Whatever a client has open is read every second, so an open page tracks the chain.
+      setInterval(() => void this.pollCurves(true), 1000),
       setInterval(() => void this.refreshSolPrice(), 30_000),
       // Recent-launch polling: backfill + detection fallback when the stream is down.
       setInterval(() => void this.pollRecent(false), 15_000),
@@ -213,15 +217,18 @@ class Monitor extends EventEmitter {
    * cap, price and pool liquidity. Market-data providers do not cover brand-new launches, so
    * without this a token would keep showing the figures it had at launch.
    */
-  private async pollCurves() {
+  private async pollCurves(focusOnly = false) {
     if (!this.solPrice) return;
     const now = Date.now();
-    const pending = [...this.tokens.values()].filter((t) => t.bondingCurve && !this.noCurve.has(t.id) && !t.graduated && this.isActive(t, now));
+    const readable = (t: Token) => t.bondingCurve && !this.noCurve.has(t.id) && !t.graduated;
+    const pending = focusOnly
+      ? [...this.focused].filter(([, until]) => until > now).map(([m]) => this.tokens.get(m)).filter((t): t is Token => Boolean(t && readable(t)))
+      : [...this.tokens.values()].filter((t) => readable(t) && this.isActive(t, now));
     if (!pending.length) return;
     // Oldest reading first, so every token refreshes in turn when there are more than one batch.
     const batch = pending
       .sort((a, b) => (this.lastCurveRead.get(a.id) ?? 0) - (this.lastCurveRead.get(b.id) ?? 0))
-      .slice(0, config.monitor.curveBatchSize);
+      .slice(0, focusOnly ? 20 : config.monitor.curveBatchSize);
     try {
       const curves = await this.chain.getBondingCurves(batch.map((t) => t.bondingCurve!));
       for (const t of batch) {
@@ -238,7 +245,8 @@ class Monitor extends EventEmitter {
         this.curveMisses.delete(t.id);
         const prev = this.tokens.get(t.id);
         if (!prev) continue;
-        this.commit(prev, evaluate(applyCurve(prev, market, Date.now()), prev));
+        // An open page charts every reading; background tokens keep the sparser history.
+        this.commit(prev, evaluate(applyCurve(prev, market, Date.now(), focusOnly), prev));
       }
       this.health.curveReads = (this.health.curveReads ?? 0) + batch.length;
     } catch (err) {
@@ -357,6 +365,13 @@ class Monitor extends EventEmitter {
   }
 
   /* ─────────── public API ─────────── */
+
+  /** Marks a mint as being watched by a client, which reads its curve every second for a while. */
+  focus(mint: string, ms = 30_000) {
+    const now = Date.now();
+    this.focused.set(mint, now + ms);
+    if (this.focused.size > 50) for (const [m, until] of this.focused) if (until <= now) this.focused.delete(m);
+  }
 
   setPinned(mints: Set<string>) {
     const added = [...mints].filter((m) => !this.pinned.has(m));

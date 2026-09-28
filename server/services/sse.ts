@@ -14,10 +14,12 @@ interface Client {
 
 const clients = new Set<Client>();
 
-/** Summary payload for list views (charts on the detail page fetch full history via REST). */
+/** Factor help text is identical for every token, so the client fills it in from the engines. */
+const slimFactors = (b: Token['risk']): Token['risk'] => ({ ...b, factors: b.factors.map(({ description: _drop, ...f }) => f) });
+
 export function summarize(t: Token): Token {
   const c = compactToken(t);
-  return { ...c, history: c.history.slice(-60), trades: [], scoreHistory: c.scoreHistory.slice(-30) };
+  return { ...c, history: c.history.slice(-60), trades: [], scoreHistory: c.scoreHistory.slice(-30), risk: slimFactors(c.risk), opportunity: slimFactors(c.opportunity) };
 }
 
 function write(res: ServerResponse, event: string, data: unknown) {

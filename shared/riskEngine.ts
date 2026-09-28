@@ -5,7 +5,7 @@ import { aggregate, clamp01, pct, runFactors, usd, type FactorDef } from './engi
  * Transparent 0–100 risk model (100 = most dangerous). 13 weighted signals; missing inputs are
  * excluded and their weight redistributed (see `coverage`). Hard safety failures apply a floor.
  */
-const DEFS: FactorDef<Token>[] = [
+export const DEFS: FactorDef<Token>[] = [
   {
     key: 'liquidity',
     label: 'Liquidity',
