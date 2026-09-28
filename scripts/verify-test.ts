@@ -2,6 +2,7 @@
  * Unit checks for the strict verified-coin filter. Usage: node scripts/verify-test.ts
  */
 import { curveMarket, decodeCurve } from '../shared/bondingCurve.ts';
+import { toCandles } from '../shared/candles.ts';
 import { createToken, evaluate } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
 import { formatVerifiedTelegram, STRICT, verifyToken, type OutcomeSample } from '../shared/verification.ts';
@@ -180,6 +181,20 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
 
   check('garbage account is rejected', decodeCurve(Buffer.alloc(20)) === null && decodeCurve(Buffer.alloc(49)) === null);
   check('curve pricing needs a SOL price', curveMarket(state!, 0) === null);
+}
+
+// 9. Candle aggregation (the live chart).
+{
+  const pt = (t: number, mcap: number, volume = 0): HistoryPoint => ({ t, price: mcap / 1e9, mcap, liquidity: 0, volume, buyVolume: 0, sellVolume: 0, holders: 0 });
+  const candles = toCandles([pt(1_000, 100), pt(2_000, 140), pt(3_000, 80), pt(4_000, 120), pt(11_000, 90, 5), pt(12_000, 95, 5)], 10_000);
+  check('ticks group into one candle per bucket', candles.length === 2, candles.length);
+  const [first, second] = candles;
+  check('open is the first tick, close the last', first.open === 100 && first.close === 120, first);
+  check('high and low span the bucket', first.high === 140 && first.low === 80, first);
+  check('close above open is green', first.up === true && second.up === true, [first.up, second.up]);
+  check('close below open is red', toCandles([pt(1_000, 100), pt(2_000, 50)], 10_000)[0].up === false);
+  check('volume accumulates per candle', second.volume === 10, second.volume);
+  check('zero and negative values are ignored', toCandles([pt(1_000, 0), pt(2_000, -5)], 10_000).length === 0);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll verification checks passed');

@@ -5,6 +5,7 @@ import { SIGNAL_EXPLAINER } from '../../shared/aiService.ts';
 import { scoreLabel } from '../../shared/opportunityEngine.ts';
 import { riskLevel } from '../../shared/riskEngine.ts';
 import { LiquidityChart } from '../components/charts/LiquidityChart';
+import { CandleChart } from '../components/charts/CandleChart';
 import { PriceChart } from '../components/charts/PriceChart';
 import { ScoreHistoryChart } from '../components/charts/ScoreHistoryChart';
 import { VolumeChart } from '../components/charts/VolumeChart';
@@ -156,6 +157,7 @@ function Header({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) => v
 
 function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) => void }) {
   const [tf, setTf] = useState<Timeframe>('1H');
+  const [style, setStyle] = useState<'candles' | 'line'>('candles');
   const { state, positionFor } = useTrading();
   const trades = useMemo(() => state.transactions.filter((t) => t.tokenId === token.id), [state.transactions, token.id]);
   const position = positionFor(token.id);
@@ -191,9 +193,12 @@ function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) =>
                 </span>
               </p>
             </div>
-            <Segmented label="Timeframe" size="sm" value={tf} onChange={setTf} options={TIMEFRAMES.map((t) => ({ value: t, label: t }))} className="w-full sm:w-auto" />
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <Segmented label="Chart style" size="sm" value={style} onChange={setStyle} options={[{ value: 'candles', label: 'Candles' }, { value: 'line', label: 'Line' }]} />
+              <Segmented label="Timeframe" size="sm" value={tf} onChange={setTf} options={TIMEFRAMES.map((t) => ({ value: t, label: t }))} className="flex-1 sm:flex-none" />
+            </div>
           </div>
-          <PriceChart token={token} timeframe={tf} height={280} trades={trades} />
+          {style === 'candles' ? <CandleChart token={token} timeframe={tf} height={280} /> : <PriceChart token={token} timeframe={tf} height={280} trades={trades} />}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
             <span className="flex items-center gap-1">
               <span className="size-2 rounded-full bg-primary" /> Buy marker
@@ -338,12 +343,30 @@ function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) =>
 
 function ChartTab({ token }: { token: Token }) {
   const [tf, setTf] = useState<Timeframe>('1H');
+  const [style, setStyle] = useState<'candles' | 'line'>('candles');
   const { state } = useTrading();
   const trades = useMemo(() => state.transactions.filter((t) => t.tokenId === token.id), [state.transactions, token.id]);
   return (
     <div className="space-y-4">
-      <Section title="Price" action={<Segmented label="Timeframe" size="sm" value={tf} onChange={setTf} options={TIMEFRAMES.map((t) => ({ value: t, label: t }))} />}>
-        <PriceChart token={token} timeframe={tf} height={360} trades={trades} />
+      <Section
+        title="Market cap"
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented
+              label="Chart style"
+              size="sm"
+              value={style}
+              onChange={setStyle}
+              options={[
+                { value: 'candles', label: 'Candles' },
+                { value: 'line', label: 'Line' },
+              ]}
+            />
+            <Segmented label="Timeframe" size="sm" value={tf} onChange={setTf} options={TIMEFRAMES.map((t) => ({ value: t, label: t }))} />
+          </div>
+        }
+      >
+        {style === 'candles' ? <CandleChart token={token} timeframe={tf} height={360} /> : <PriceChart token={token} timeframe={tf} height={360} trades={trades} />}
         <p className="mt-2 text-[11px] text-muted">
           Real-time series recorded from market-data polls{token.trades.length ? ' and the trade stream' : ''}. B/S markers = largest observed trades and your paper trades.{' '}
           <a href={`https://dexscreener.com/solana/${token.mint}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent">
