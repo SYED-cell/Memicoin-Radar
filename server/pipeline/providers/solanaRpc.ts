@@ -141,7 +141,8 @@ export const solanaRpc: ChainProvider = {
       const res = await rpc<{ value: ({ data: [string, string]; owner: string } | null)[] }>(
         'getMultipleAccounts',
         [chunk, { encoding: 'base64', commitment: 'confirmed' }],
-        4_000,
+        // Shorter than the per-second focus poll, or an open page would read its own cached reply.
+        800,
       );
       chunk.forEach((address, n) => {
         const account = res.value[n];
