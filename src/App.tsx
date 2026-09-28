@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppLayout, ScrollToTop } from './components/layout/AppLayout';
 import { LoadingState } from './components/ui/LoadingState';
@@ -10,27 +10,43 @@ import { ToastProvider } from './context/ToastContext';
 import { TradingProvider } from './context/TradingContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 
-const SplashPage = lazy(() => import('./pages/SplashPage'));
-const AuthPage = lazy(() => import('./pages/AuthPage'));
-const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
-const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const MarketPage = lazy(() => import('./pages/MarketPage'));
-const TokenDetailsPage = lazy(() => import('./pages/TokenDetailsPage'));
-const ChartsPage = lazy(() => import('./pages/ChartsPage'));
-const ScoringPage = lazy(() => import('./pages/ScoringPage'));
-const RiskPage = lazy(() => import('./pages/RiskPage'));
-const AIAnalysisPage = lazy(() => import('./pages/AIAnalysisPage'));
-const AlertsPage = lazy(() => import('./pages/AlertsPage'));
-const AlertDetailsPage = lazy(() => import('./pages/AlertDetailsPage'));
-const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
-const PaperTradingPage = lazy(() => import('./pages/PaperTradingPage'));
-const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const TelegramPage = lazy(() => import('./pages/TelegramPage'));
-const DailyReportPage = lazy(() => import('./pages/DailyReportPage'));
-const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+/**
+ * A deploy replaces the hashed chunks, so a page left open asks for files that no longer exist.
+ * Reload once to pick up the new build instead of crashing the view.
+ */
+const lazyPage = <P,>(load: () => Promise<{ default: ComponentType<P> }>) =>
+  lazy(() =>
+    load().catch((err: unknown) => {
+      const last = Number(sessionStorage.getItem('chunk-reload') ?? 0);
+      if (Date.now() - last > 10_000) {
+        sessionStorage.setItem('chunk-reload', String(Date.now()));
+        window.location.reload();
+      }
+      throw err;
+    }),
+  );
+
+const SplashPage = lazyPage(() => import('./pages/SplashPage'));
+const AuthPage = lazyPage(() => import('./pages/AuthPage'));
+const VerifyEmailPage = lazyPage(() => import('./pages/VerifyEmailPage'));
+const ResetPasswordPage = lazyPage(() => import('./pages/ResetPasswordPage'));
+const DashboardPage = lazyPage(() => import('./pages/DashboardPage'));
+const MarketPage = lazyPage(() => import('./pages/MarketPage'));
+const TokenDetailsPage = lazyPage(() => import('./pages/TokenDetailsPage'));
+const ChartsPage = lazyPage(() => import('./pages/ChartsPage'));
+const ScoringPage = lazyPage(() => import('./pages/ScoringPage'));
+const RiskPage = lazyPage(() => import('./pages/RiskPage'));
+const AIAnalysisPage = lazyPage(() => import('./pages/AIAnalysisPage'));
+const AlertsPage = lazyPage(() => import('./pages/AlertsPage'));
+const AlertDetailsPage = lazyPage(() => import('./pages/AlertDetailsPage'));
+const WatchlistPage = lazyPage(() => import('./pages/WatchlistPage'));
+const PaperTradingPage = lazyPage(() => import('./pages/PaperTradingPage'));
+const PortfolioPage = lazyPage(() => import('./pages/PortfolioPage'));
+const SettingsPage = lazyPage(() => import('./pages/SettingsPage'));
+const TelegramPage = lazyPage(() => import('./pages/TelegramPage'));
+const DailyReportPage = lazyPage(() => import('./pages/DailyReportPage'));
+const HowItWorksPage = lazyPage(() => import('./pages/HowItWorksPage'));
+const NotFoundPage = lazyPage(() => import('./pages/NotFoundPage'));
 
 function PageFallback() {
   return (

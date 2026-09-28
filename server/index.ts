@@ -31,7 +31,12 @@ function serveStatic(pathname: string, res: import('node:http').ServerResponse):
   if (!existsSync(DIST)) return false;
   const safe = normalize(pathname).replace(/^(\.\.[/\\])+/, '');
   let file = join(DIST, safe);
-  if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html'); // SPA fallback
+  if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) {
+    // Only routes fall back to the app shell. A missing file with an extension — a code chunk from
+    // a previous build, say — must 404, or the browser parses HTML as JavaScript and the view dies.
+    if (extname(safe)) return false;
+    file = join(DIST, 'index.html');
+  }
   if (!existsSync(file)) return false;
   res.statusCode = 200;
   res.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
