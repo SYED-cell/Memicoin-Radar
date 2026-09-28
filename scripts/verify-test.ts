@@ -166,6 +166,18 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
   check('half-sold curve reports ~50% progress', Math.abs(mh.bondingProgress - 50) < 0.1, mh.bondingProgress);
   check('liquidity counts both sides of the pool', Math.abs(mh.liquidityUsd - 15 * 120 * 2) < 1, mh.liquidityUsd);
 
+  // Newer curves store SOL 1000x finer than lamports; the same reserves must price the same.
+  const fine = Buffer.from(buf);
+  fine.writeBigUInt64LE(30_000_000_000_000n, 16);
+  const mf = curveMarket(decodeCurve(fine)!, 120)!;
+  check('finer SOL units price the same as lamports', Math.abs(mf.marketCapUsd - m!.marketCapUsd) < 1, { fine: mf.marketCapUsd, lamports: m!.marketCapUsd });
+
+  const fineHalf = Buffer.from(half);
+  fineHalf.writeBigUInt64LE(45_000_000_000_000n, 16);
+  fineHalf.writeBigUInt64LE(15_000_000_000_000n, 32);
+  const mfh = curveMarket(decodeCurve(fineHalf)!, 120)!;
+  check('liquidity follows the same units', Math.abs(mfh.liquidityUsd - 15 * 120 * 2) < 1, mfh.liquidityUsd);
+
   check('garbage account is rejected', decodeCurve(Buffer.alloc(20)) === null && decodeCurve(Buffer.alloc(49)) === null);
   check('curve pricing needs a SOL price', curveMarket(state!, 0) === null);
 }

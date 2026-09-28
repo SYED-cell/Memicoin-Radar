@@ -56,14 +56,25 @@ export function decodeCurve(data: Uint8Array): CurveState | null {
   return state;
 }
 
+/**
+ * Newer pump.fun curves hold their SOL reserves in units 1000x finer than lamports, so the same
+ * field has two meanings depending on when the curve was created. A curve never holds more than a
+ * few hundred SOL (it migrates at ~115), so a lamport reading in the thousands is the finer unit.
+ * Reading it wrong reports a market cap 1000x too high.
+ */
+function solUnit(rawVirtualSol: number): number {
+  return rawVirtualSol / LAMPORTS_PER_SOL > 2_000 ? LAMPORTS_PER_SOL * 1000 : LAMPORTS_PER_SOL;
+}
+
 /** Converts raw curve reserves into USD figures. Returns null when the SOL price is unknown. */
 export function curveMarket(state: CurveState, solPriceUsd: number): CurveMarket | null {
   if (!solPriceUsd) return null;
-  const sol = state.virtualSolReserves / LAMPORTS_PER_SOL;
+  const unit = solUnit(state.virtualSolReserves);
+  const sol = state.virtualSolReserves / unit;
   const tokens = state.virtualTokenReserves / 10 ** PUMP_DECIMALS;
   const priceSol = sol / tokens;
   const supply = state.totalSupply / 10 ** PUMP_DECIMALS;
-  const realSol = state.realSolReserves / LAMPORTS_PER_SOL;
+  const realSol = state.realSolReserves / unit;
   const remaining = state.realTokenReserves / 10 ** PUMP_DECIMALS;
   return {
     price: priceSol * solPriceUsd,
