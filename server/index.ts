@@ -1,10 +1,11 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { createGzip } from 'node:zlib';
 import { extname, join, normalize, resolve } from 'node:path';
 import { config } from './env.ts';
 import { startMaintenance } from './maintenance.ts';
 import { db, run } from './db.ts';
-import { applyCors, clientIp, HttpError, parseCookies, readJson, securityHeaders, sendJson, type Ctx } from './lib/http.ts';
+import { acceptsGzip, applyCors, clientIp, HttpError, parseCookies, readJson, securityHeaders, sendJson, type Ctx } from './lib/http.ts';
 import { log } from './lib/log.ts';
 import { monitor } from './pipeline/monitor.ts';
 import { router } from './routes.ts';
@@ -41,6 +42,13 @@ function serveStatic(pathname: string, res: import('node:http').ServerResponse):
   res.statusCode = 200;
   res.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
   res.setHeader('cache-control', file.includes(`${DIST}\\assets`) || file.includes(`${DIST}/assets`) ? 'public, max-age=31536000, immutable' : 'no-cache');
+  // The JS bundles are the bulk of a first load; gzip takes them to roughly a third.
+  if (/\.(js|css|html|json|svg|map)$/.test(file) && acceptsGzip(res)) {
+    res.setHeader('content-encoding', 'gzip');
+    res.setHeader('vary', 'accept-encoding');
+    createReadStream(file).pipe(createGzip()).pipe(res);
+    return true;
+  }
   createReadStream(file).pipe(res);
   return true;
 }

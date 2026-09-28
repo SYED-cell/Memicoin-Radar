@@ -1,3 +1,4 @@
+import { gzip } from 'node:zlib';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { config } from '../env.ts';
 
@@ -134,12 +135,23 @@ export function readJson(req: IncomingMessage, limit = 32_000): Promise<unknown>
   });
 }
 
+/** Whether this client accepts gzip. Reads the request off the response so callers stay unchanged. */
+export const acceptsGzip = (res: ServerResponse): boolean => /\bgzip\b/i.test(String(res.req?.headers['accept-encoding'] ?? ''));
+
 export function sendJson(res: ServerResponse, status: number, body: unknown) {
   if (res.headersSent) return;
+  const payload = JSON.stringify(body);
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
-  res.end(JSON.stringify(body));
+  // Token payloads carry long histories and factor lists; compression cuts them by ~80%.
+  if (payload.length > 1024 && acceptsGzip(res)) {
+    res.setHeader('content-encoding', 'gzip');
+    res.setHeader('vary', 'accept-encoding');
+    gzip(payload, (err, buf) => (err ? res.end(payload) : res.end(buf)));
+    return;
+  }
+  res.end(payload);
 }
 
 export function clientIp(req: IncomingMessage): string {

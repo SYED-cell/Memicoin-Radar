@@ -1,8 +1,8 @@
 import type { ChartMarker, HistoryPoint, SeriesPoint, Timeframe, Token, Transaction } from '../types';
 
-export const TIMEFRAMES: Timeframe[] = ['5M', '1H', '6H', '24H'];
+export const TIMEFRAMES: Timeframe[] = ['1M', '5M', '1H', '4H', 'D'];
 
-const SPAN: Record<Timeframe, number> = { '5M': 5 * 60_000, '1H': 3_600_000, '6H': 6 * 3_600_000, '24H': 24 * 3_600_000 };
+const SPAN: Record<Timeframe, number> = { '1M': 60_000, '5M': 5 * 60_000, '1H': 3_600_000, '4H': 4 * 3_600_000, D: 24 * 3_600_000 };
 /** Target bucket count per range — keeps charts readable and fast regardless of history length. */
 const BUCKETS = 90;
 

@@ -8,7 +8,7 @@ export type Phase = 'Early' | 'Mid' | 'Late';
 export type Signal = 'WATCH' | 'HIGH-RISK SETUP' | 'AVOID' | 'INSUFFICIENT DATA';
 export type RiskLevel = 'Low' | 'Medium' | 'High' | 'Extreme';
 /** Chart ranges for young, fast-moving tokens. */
-export type Timeframe = '5M' | '1H' | '6H' | '24H';
+export type Timeframe = '1M' | '5M' | '1H' | '4H' | 'D';
 
 /* ─────────────────────────── Raw provider data ─────────────────────────── */
 

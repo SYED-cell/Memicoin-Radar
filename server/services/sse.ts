@@ -1,4 +1,5 @@
 import type { ServerResponse } from 'node:http';
+import { createGzip, constants as zlibConstants } from 'node:zlib';
 import type { Alert, Token } from '../../shared/types.ts';
 import { compactToken } from '../../shared/tokenService.ts';
 import { monitor } from '../pipeline/monitor.ts';
@@ -10,6 +11,8 @@ import { monitor } from '../pipeline/monitor.ts';
 interface Client {
   userId: string;
   res: ServerResponse;
+  /** gzip stream when the client accepts it; events are flushed after every write. */
+  out: { write(chunk: string): void };
 }
 
 const clients = new Set<Client>();
@@ -22,26 +25,41 @@ export function summarize(t: Token): Token {
   return { ...c, history: c.history.slice(-60), trades: [], scoreHistory: c.scoreHistory.slice(-30), risk: slimFactors(c.risk), opportunity: slimFactors(c.opportunity) };
 }
 
-function write(res: ServerResponse, event: string, data: unknown) {
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+function write(out: Client['out'], event: string, data: unknown) {
+  out.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
 export function addClient(userId: string, res: ServerResponse) {
+  const gzip = /\bgzip\b/i.test(String(res.req?.headers['accept-encoding'] ?? ''));
   res.writeHead(200, {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache, no-transform',
     connection: 'keep-alive',
     'x-accel-buffering': 'no',
+    ...(gzip ? { 'content-encoding': 'gzip', vary: 'accept-encoding' } : {}),
   });
-  res.write('retry: 3000\n\n');
-  const client: Client = { userId, res };
+  // The snapshot is megabytes of JSON; gzip cuts it to a fraction. Each event is flushed straight
+  // away, otherwise the stream would sit in the compressor's buffer instead of reaching the client.
+  let out: Client['out'] = res;
+  if (gzip) {
+    const gz = createGzip();
+    gz.pipe(res);
+    out = {
+      write(chunk: string) {
+        gz.write(chunk);
+        gz.flush(zlibConstants.Z_SYNC_FLUSH);
+      },
+    };
+  }
+  out.write('retry: 3000\n\n');
+  const client: Client = { userId, res, out };
   clients.add(client);
-  write(res, 'snapshot', { tokens: monitor.list().map(summarize), health: monitor.getHealth(), solPrice: monitor.solUsd, t: Date.now() });
+  write(out, 'snapshot', { tokens: monitor.list().map(summarize), health: monitor.getHealth(), solPrice: monitor.solUsd, t: Date.now() });
   res.on('close', () => clients.delete(client));
 }
 
 export function sendToUser(userId: string, event: 'alert' | 'portfolio' | 'telegram', data: unknown) {
-  for (const c of clients) if (c.userId === userId) write(c.res, event, data);
+  for (const c of clients) if (c.userId === userId) write(c.out, event, data);
 }
 
 export function pushAlerts(userId: string, alerts: Alert[]) {
@@ -60,12 +78,12 @@ export function startSse() {
       const { changed, removed } = monitor.drainChanges();
       if (!clients.size || (!changed.length && !removed.length)) return;
       const payload = { tokens: changed.map(summarize), removed, health: monitor.getHealth(), solPrice: monitor.solUsd, t: Date.now() };
-      for (const c of clients) write(c.res, 'update', payload);
+      for (const c of clients) write(c.out, 'update', payload);
     }, 1000),
     // Heartbeat keeps proxies from closing idle connections and carries connection health.
     setInterval(() => {
       const health = monitor.getHealth();
-      for (const c of clients) write(c.res, 'health', { health, t: Date.now() });
+      for (const c of clients) write(c.out, 'health', { health, t: Date.now() });
     }, 15_000),
   ];
 }

@@ -6,6 +6,7 @@ import { scoreLabel } from '../../shared/opportunityEngine.ts';
 import { riskLevel } from '../../shared/riskEngine.ts';
 import { LiquidityChart } from '../components/charts/LiquidityChart';
 import { CandleChart } from '../components/charts/CandleChart';
+import { TradeLevels, useTradeLevels } from '../components/token/TradeLevels';
 import { PriceChart } from '../components/charts/PriceChart';
 import { ScoreHistoryChart } from '../components/charts/ScoreHistoryChart';
 import { VolumeChart } from '../components/charts/VolumeChart';
@@ -158,6 +159,7 @@ function Header({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) => v
 function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) => void }) {
   const [tf, setTf] = useState<Timeframe>('1H');
   const [style, setStyle] = useState<'candles' | 'line'>('candles');
+  const tradeLevels = useTradeLevels(token);
   const { state, positionFor } = useTrading();
   const trades = useMemo(() => state.transactions.filter((t) => t.tokenId === token.id), [state.transactions, token.id]);
   const position = positionFor(token.id);
@@ -198,7 +200,8 @@ function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) =>
               <Segmented label="Timeframe" size="sm" value={tf} onChange={setTf} options={TIMEFRAMES.map((t) => ({ value: t, label: t }))} className="flex-1 sm:flex-none" />
             </div>
           </div>
-          {style === 'candles' ? <CandleChart token={token} timeframe={tf} height={280} /> : <PriceChart token={token} timeframe={tf} height={280} trades={trades} />}
+          {style === 'candles' ? <CandleChart token={token} timeframe={tf} height={300} levels={tradeLevels.levels} /> : <PriceChart token={token} timeframe={tf} height={280} trades={trades} />}
+          <TradeLevels token={token} data={tradeLevels} />
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
             <span className="flex items-center gap-1">
               <span className="size-2 rounded-full bg-primary" /> Buy marker
