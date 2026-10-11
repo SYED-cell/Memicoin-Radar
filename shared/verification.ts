@@ -426,11 +426,17 @@ export const summarizeVerification = (v: VerificationResult): VerificationSummar
  * Recording outcomes for these builds the comparable-setup evidence base over time.
  */
 export function isTrackableSetup(v: VerificationResult): boolean {
+  const outcome = (key: string) => v.checks.find((c) => c.key === key)?.outcome;
+  // Contract-level danger is excluded: a live mint authority or broken metadata is not a setup,
+  // it is a trap, and measuring it would poison the statistics. Behavioural signals — bot-driven
+  // volume, clustered wallets, serial creators — are the normal condition of a meme launch and
+  // are what the outcomes are supposed to describe, so they are measured rather than filtered.
+  // The comparable band is matched on score and risk, which already separate those populations.
+  if (outcome('security') !== 'pass' || outcome('metadata') !== 'pass') return false;
+  // Measurable at all: the on-chain reading must be fresh enough to resolve an outcome against.
+  if (outcome('onchain') !== 'pass') return false;
   const core = v.checks.filter((c) => c.key !== 'comparables' && c.key !== 'riskReward');
-  // Every critical safety check must pass: dangerous setups are excluded, not measured. The rest
-  // may fail or be unmeasurable — that spread is exactly what the outcome statistics describe.
-  // Requiring all twelve to pass recorded nothing at all, so no plan could ever be built.
-  return core.every((c) => !c.critical || c.outcome === 'pass') && core.filter((c) => c.outcome === 'pass').length >= 6;
+  return core.filter((c) => c.outcome === 'pass').length >= 5;
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;

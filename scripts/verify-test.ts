@@ -205,8 +205,11 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
 {
   check('a healthy setup is recorded', isTrackableSetup(v0));
   check('a non-critical failure is still recorded', isTrackableSetup(verifyToken({ ...t, priceChange5m: -3 }, [], now)));
-  check('a critical failure is never recorded', !isTrackableSetup(verifyToken({ ...t, mintAuthorityDisabled: false }, [], now)));
-  check('a creator dumping is never recorded', !isTrackableSetup(verifyToken({ ...t, creatorSoldPct: 70 }, [], now)));
+  check('a live mint authority is never recorded', !isTrackableSetup(verifyToken({ ...t, mintAuthorityDisabled: false }, [], now)));
+  check('invalid metadata is never recorded', !isTrackableSetup(verifyToken({ ...t, metadataOk: false }, [], now)));
+  check('a stale reading is never recorded', !isTrackableSetup(verifyToken({ ...t, onChainVerifiedAt: now - 3 * 3_600_000 }, [], now)));
+  // Behavioural signals are the normal condition of a meme launch: measured, not filtered out.
+  check('bot-heavy trading is still recorded', isTrackableSetup(verifyToken({ ...t, organicScore: 5 }, [], now)));
 }
 
 // 8d. Entry levels read from price action, used until comparable outcomes exist.
