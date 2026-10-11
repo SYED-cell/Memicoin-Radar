@@ -6,6 +6,7 @@ import { all, run, tx } from '../db.ts';
 import { config } from '../env.ts';
 import { log } from '../lib/log.ts';
 import { pruneCache, sourceHealth } from './httpClient.ts';
+import { aveConfigured, aveToken } from './providers/ave.ts';
 import { jupiterProvider } from './providers/jupiter.ts';
 import { mockChain, mockMarketProvider, MockStream } from './providers/mock.ts';
 import { PumpPortalStream } from './providers/pumpPortal.ts';
@@ -29,6 +30,7 @@ class Monitor extends EventEmitter {
   private tokens = new Map<string, Token>();
   private lastPolled = new Map<string, number>();
   private lastCurveRead = new Map<string, number>();
+  private lastAve = new Map<string, number>();
   /** Mints someone is looking at right now → expiry. These get a per-second on-chain read. */
   private focused = new Map<string, number>();
   private curveMisses = new Map<string, number>();
@@ -101,6 +103,7 @@ class Monitor extends EventEmitter {
       setInterval(() => void this.pollCurves(), config.monitor.curveIntervalMs),
       // Whatever a client has open is read every second, so an open page tracks the chain.
       setInterval(() => void this.pollCurves(true), 1000),
+      setInterval(() => void this.resolveMissingCurve(), 2500),
       setInterval(() => void this.refreshSolPrice(), 30_000),
       // Recent-launch polling: backfill + detection fallback when the stream is down.
       setInterval(() => void this.pollRecent(false), 15_000),
@@ -223,7 +226,9 @@ class Monitor extends EventEmitter {
     const readable = (t: Token) => t.bondingCurve && !this.noCurve.has(t.id) && !t.graduated;
     const pending = focusOnly
       ? [...this.focused].filter(([, until]) => until > now).map(([m]) => this.tokens.get(m)).filter((t): t is Token => Boolean(t && readable(t)))
-      : [...this.tokens.values()].filter((t) => readable(t) && this.isActive(t, now));
+      : // Every tracked curve is read, oldest first. Gating this by "active" left an hour-old
+        // $5K token showing the figure it had when it was last considered interesting.
+        [...this.tokens.values()].filter(readable);
     if (!pending.length) return;
     // Oldest reading first, so every token refreshes in turn when there are more than one batch.
     const batch = pending
@@ -365,6 +370,56 @@ class Monitor extends EventEmitter {
   }
 
   /* ─────────── public API ─────────── */
+
+  /**
+   * Finds the bonding curve for one pump.fun token that arrived without one, so it can be priced
+   * from the chain like the rest instead of relying on a provider. One token per tick keeps the
+   * public RPC happy; a token that fails three times is left to the provider.
+   */
+  private async resolveMissingCurve() {
+    const t = [...this.tokens.values()].find(
+      (x) => !x.bondingCurve && !x.graduated && !this.noCurve.has(x.id) && (x.mint.endsWith('pump') || /pump/i.test(x.launchpad)) && (this.curveMisses.get(x.id) ?? 0) < 3,
+    );
+    if (!t) return void this.crossCheckWithAve();
+    try {
+      const curve = await this.chain.findBondingCurve(t.mint);
+      if (!curve) {
+        const misses = (this.curveMisses.get(t.id) ?? 0) + 1;
+        this.curveMisses.set(t.id, misses);
+        if (misses >= 3) this.noCurve.add(t.id);
+        return;
+      }
+      const current = this.tokens.get(t.id);
+      if (!current) return;
+      this.curveMisses.delete(t.id);
+      this.commit(current, { ...current, bondingCurve: curve });
+      log.info('market', `resolved bonding curve for $${t.symbol} on-chain`);
+    } catch {
+      // Rate limited or unavailable: another tick will try again.
+      this.curveMisses.set(t.id, (this.curveMisses.get(t.id) ?? 0) + 1);
+    }
+  }
+
+  /**
+   * For tokens with no readable curve, ave.ai is a second opinion on market cap and liquidity.
+   * Does nothing unless AVE_API_KEY is set; one token per tick, oldest reading first.
+   */
+  private async crossCheckWithAve() {
+    if (!aveConfigured()) return;
+    const now = Date.now();
+    const t = [...this.tokens.values()]
+      .filter((x) => !x.graduated && !x.curveAt && (now - (this.lastAve.get(x.id) ?? 0) > 60_000))
+      .sort((a, b) => (this.lastAve.get(a.id) ?? 0) - (this.lastAve.get(b.id) ?? 0))[0];
+    if (!t) return;
+    this.lastAve.set(t.id, now);
+    const data = await aveToken(t.mint);
+    const prev = data && this.tokens.get(t.id);
+    if (!data || !prev) return;
+    this.commit(
+      prev,
+      evaluate({ ...prev, marketCap: data.mcap, fdv: data.mcap, price: data.price || prev.price, liquidity: data.liquidity || prev.liquidity, marketUpdatedAt: Date.now(), updatedAt: Date.now() }, prev),
+    );
+  }
 
   /** Marks a mint as being watched by a client, which reads its curve every second for a while. */
   focus(mint: string, ms = 30_000) {

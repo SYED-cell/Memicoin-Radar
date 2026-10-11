@@ -609,9 +609,19 @@ export interface ComparableStats {
   lastAt: number;
 }
 
+export interface PlanEntry {
+  label: string;
+  price: number;
+  /** Share of the position this entry takes; the two entries sum to 100. */
+  allocationPct: number;
+  reason: string;
+}
+
 export interface TradePlan {
   entryLow: number;
   entryHigh: number;
+  /** Two entries: one at market, one on a pullback. The split follows the bull probability. */
+  entries: PlanEntry[];
   stop: number;
   stopPct: number;
   tp1: number;

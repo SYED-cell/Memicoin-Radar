@@ -10,7 +10,7 @@
  * past setups — never invented. Nothing here is a prediction or a guarantee.
  */
 import { age, compactUsd, priceUsd, signedPct } from './numbers.ts';
-import type { ComparableStats, TradePlan, Token, VerifiedFact, VerifyCheck, VerificationResult, VerificationSummary, VerifyStatus } from './types.ts';
+import type { ComparableStats, PlanEntry, TradePlan, Token, VerifiedFact, VerifyCheck, VerificationResult, VerificationSummary, VerifyStatus } from './types.ts';
 
 export const STRICT = {
   marketMaxAgeMs: 2 * 60_000,
@@ -100,9 +100,30 @@ export function buildPlan(t: Token, c: ComparableStats): TradePlan {
   const tp2 = Math.max(tp1 * 1.05, price * (1 + c.maxUpQ70 / 100));
   const tp3 = Math.max(tp2 * 1.05, price * (1 + c.maxUpQ90 / 100));
   const entry = price;
+  // Two entries, weighted by how often comparable setups ran up: a strong bull reading puts more
+  // size on at market, a weak one waits lower and deeper. The pullback entry always sits above the
+  // stop, otherwise it would fill only on an invalidated setup.
+  const bull = Math.max(0, Math.min(1, c.bullProb));
+  const atMarketPct = Math.round(30 + bull * 40);
+  const dipPct = Math.min(stopPct * 0.6, 3 + (1 - bull) * 9);
+  const entries: PlanEntry[] = [
+    {
+      label: 'Entry 1 — at market',
+      price,
+      allocationPct: atMarketPct,
+      reason: `${Math.round(bull * 100)}% of comparable setups ran up ≥ ${STRICT.bullThresholdPct}%`,
+    },
+    {
+      label: 'Entry 2 — on a pullback',
+      price: price * (1 - dipPct / 100),
+      allocationPct: 100 - atMarketPct,
+      reason: `−${dipPct.toFixed(1)}% from here, still above the stop`,
+    },
+  ];
   return {
-    entryLow: price * 0.97,
+    entryLow: price * (1 - dipPct / 100),
     entryHigh: price * 1.02,
+    entries,
     stop,
     stopPct,
     tp1,
@@ -430,7 +451,7 @@ export function formatVerifiedTelegram(v: VerificationResult, appUrl?: string): 
     '',
     '━━ MODEL ESTIMATES (not predictions) ━━',
     c ? `📈 After ${c.horizonMin} min, ${c.n} comparable setups: Bull ${pct(c.bullProb)} (≥ +${STRICT.bullThresholdPct}%) · Base ${pct(c.baseProb)} · Bear ${pct(c.bearProb)} (≤ ${STRICT.bearThresholdPct}%)` : '📈 Probabilities: INSUFFICIENT DATA',
-    p ? `💰 Entry zone: ${priceUsd(p.entryLow)} – ${priceUsd(p.entryHigh)}` : '',
+    ...(p ? p.entries.map((e) => `💰 ${e.label}: ${priceUsd(e.price)} · ${e.allocationPct}% of position (${e.reason})`) : []),
     p ? `🛑 Stop / invalidation: ${priceUsd(p.stop)} (−${p.stopPct.toFixed(0)}%)` : '',
     p ? `🎯 TP1 ${priceUsd(p.tp1)} · TP2 ${priceUsd(p.tp2)} · TP3 ${priceUsd(p.tp3)}` : '',
     p ? `⚖️ Risk/Reward (to TP2): ${p.rr.toFixed(2)}` : '',

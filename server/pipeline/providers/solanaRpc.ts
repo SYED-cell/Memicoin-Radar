@@ -133,6 +133,27 @@ export const solanaRpc: ChainProvider = {
     return requestJson<Record<string, unknown>>(url, { source: IPFS, ttl: 3_600_000, timeoutMs: 8000, retries: 1 });
   },
 
+  /**
+   * The curve holds the bulk of a pump.fun token's supply, so the owner of the largest token
+   * account is the curve. Used for tokens whose launch event carried no curve address — without
+   * it they can only be priced by a market-data provider, which lags the chain.
+   */
+  async findBondingCurve(mint) {
+    const largest = await rpc<{ value: { address: string }[] }>('getTokenLargestAccounts', [mint, { commitment: 'confirmed' }], 300_000);
+    const holders = largest.value.slice(0, 3).map((a) => a.address);
+    if (!holders.length) return null;
+    const parsed = await rpc<{ value: ({ data: { parsed?: { info?: { owner?: string } } } } | null)[] }>(
+      'getMultipleAccounts',
+      [holders, { encoding: 'jsonParsed', commitment: 'confirmed' }],
+      300_000,
+    );
+    const owners = parsed.value.map((o) => o?.data.parsed?.info?.owner).filter((o): o is string => Boolean(o));
+    if (!owners.length) return null;
+    const accounts = await rpc<{ value: ({ owner: string } | null)[] }>('getMultipleAccounts', [owners, { encoding: 'base64', commitment: 'confirmed' }], 300_000);
+    const hit = accounts.value.findIndex((a) => a?.owner === PUMP_PROGRAM_ID);
+    return hit >= 0 ? owners[hit] : null;
+  },
+
   /** One getMultipleAccounts call per batch (100 max per Solana RPC), cached briefly so prices stay live. */
   async getBondingCurves(addresses) {
     const out = new Map<string, CurveState>();

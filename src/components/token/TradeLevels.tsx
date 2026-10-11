@@ -35,7 +35,7 @@ export function useTradeLevels(token: Token) {
 
   const levels: ChartLevel[] = plan
     ? [
-        { label: 'Entry', value: toMcap((plan.entryLow + plan.entryHigh) / 2), color: 'var(--color-accent)' },
+        ...plan.entries.map((e, i) => ({ label: `Entry ${i + 1}`, value: toMcap(e.price), color: 'var(--color-accent)' })),
         { label: 'Stop', value: toMcap(plan.stop), color: 'var(--color-danger)' },
         { label: 'TP1', value: toMcap(plan.tp1), color: 'var(--color-primary)' },
         { label: 'TP2', value: toMcap(plan.tp2), color: 'var(--color-primary)' },
@@ -54,16 +54,32 @@ export function TradeLevels({ token, data }: { token: Token; data: ReturnType<ty
   const high = caps.length ? Math.max(...caps) : 0;
 
   if (plan) {
-    const rr = plan.rr.toFixed(2);
+    const bull = result?.estimates.comparables?.bullProb ?? 0;
     return (
-      <div className="mt-2 rounded-xl border border-line bg-bg-2/60 p-2.5 text-xs">
-        <div className="num grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Cell label="Entry zone" value={`${formatCompactUsd(toMcap(plan.entryLow))} – ${formatCompactUsd(toMcap(plan.entryHigh))}`} tone="text-accent" />
+      <div className="mt-2 overflow-hidden rounded-2xl border border-line bg-bg-2/60 text-xs">
+        <div className="flex items-center justify-between border-b border-line bg-surface/50 px-3 py-2">
+          <span className="font-semibold text-fg">Entry plan</span>
+          <span className="num text-[11px] text-muted">
+            Bull <span className="font-semibold text-primary">{Math.round(bull * 100)}%</span> · R/R <span className="font-semibold text-fg">{plan.rr.toFixed(2)}</span>
+          </span>
+        </div>
+        <ol className="divide-y divide-line">
+          {plan.entries.map((e, i) => (
+            <li key={e.label} className="flex items-center gap-3 px-3 py-2">
+              <span className="grid size-6 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 text-[11px] font-bold text-accent">{i + 1}</span>
+              <span className="min-w-0 flex-1">
+                <span className="num block font-semibold text-fg">{formatCompactUsd(toMcap(e.price))}</span>
+                <span className="block truncate text-[11px] text-muted">{e.reason}</span>
+              </span>
+              <span className="num shrink-0 rounded-lg border border-line bg-surface/60 px-2 py-1 text-[11px] font-semibold">{e.allocationPct}%</span>
+            </li>
+          ))}
+        </ol>
+        <div className="num grid grid-cols-2 gap-2 border-t border-line p-2.5">
           <Cell label={`Stop (−${plan.stopPct.toFixed(0)}%)`} value={formatCompactUsd(toMcap(plan.stop))} tone="text-danger" />
           <Cell label="Targets" value={`${formatCompactUsd(toMcap(plan.tp1))} · ${formatCompactUsd(toMcap(plan.tp2))} · ${formatCompactUsd(toMcap(plan.tp3))}`} tone="text-primary" />
-          <Cell label="Risk / reward" value={rr} />
         </div>
-        <p className="mt-2 text-[11px] text-muted">
+        <p className="px-3 pb-2.5 text-[11px] text-muted">
           Model estimate from {result?.estimates.comparables?.n ?? 0} comparable setups — not a prediction or advice. Invalidate if: {plan.invalidation.join('; ')}.
         </p>
       </div>

@@ -99,6 +99,7 @@ async function main() {
   if (config.ephemeralSecrets) log.warn('config', 'JWT_SECRET / ENCRYPTION_KEY not set — using ephemeral dev secrets (sessions reset on restart).');
   if (!config.dedicatedRpc) log.warn('config', 'SOLANA_RPC_URL not set — using public RPC (holder lists may be rate limited).');
   if (!config.pumpPortalKey) log.info('config', 'PUMPPORTAL_API_KEY not set — launch & migration stream only (no per-trade stream).');
+  log.info('config', `ave.ai cross-check ${config.aveApiKey ? 'enabled' : 'off (AVE_API_KEY not set)'} · Robinhood key ${config.robinhoodApiKey ? 'stored (read-only; this app places no orders)' : 'not set'}`);
   if (!config.resendApiKey) log.warn('config', 'RESEND_API_KEY not set — verification/reset links are printed to this console (dev only).');
   await monitor.start();
   startSse();

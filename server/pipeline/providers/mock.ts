@@ -432,4 +432,7 @@ export const mockChain: ChainProvider = {
   async getBondingCurves() {
     return new Map();
   },
+  async findBondingCurve() {
+    return null;
+  },
 };

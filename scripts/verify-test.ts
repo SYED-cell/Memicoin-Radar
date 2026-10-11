@@ -133,7 +133,7 @@ check('negative comparable expectancy → not TRADEABLE', v9.status !== 'TRADEAB
 const msg = formatVerifiedTelegram(v1, 'https://radar.example');
 check('telegram ≤ 4096 chars', msg.length <= 4096, msg.length);
 check('telegram separates VERIFIED FACTS and MODEL ESTIMATES', msg.includes('VERIFIED FACTS') && msg.includes('MODEL ESTIMATES'));
-check('telegram includes status, plan, R/R, scores, reason', ['STATUS: TRADEABLE', 'Entry zone', 'Stop / invalidation', 'TP1', 'Risk/Reward', 'Opportunity Score', 'Risk Score', 'Decision'].every((k) => msg.includes(k)));
+check('telegram includes status, plan, R/R, scores, reason', ['STATUS: TRADEABLE', 'Entry 1 — at market', 'Entry 2 — on a pullback', 'Stop / invalidation', 'TP1', 'Risk/Reward', 'Opportunity Score', 'Risk Score', 'Decision'].every((k) => msg.includes(k)));
 check('telegram ends with disclaimer', msg.trimEnd().endsWith('Meme coins can lose all value quickly.'));
 const banned = /guaranteed profit|guaranteed to|\bsafe\b|certain to rise|will moon|100x/i;
 check('telegram contains no hype / guarantee wording', !banned.test(msg.replace('not guarantees', '')), msg.match(banned)?.[0]);
@@ -181,6 +181,23 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
 
   check('garbage account is rejected', decodeCurve(Buffer.alloc(20)) === null && decodeCurve(Buffer.alloc(49)) === null);
   check('curve pricing needs a SOL price', curveMarket(state!, 0) === null);
+}
+
+// 8b. Two entries, weighted by the bull probability.
+{
+  const plan = v1.estimates.plan!;
+  const [first, second] = plan.entries;
+  check('plan offers two entries', plan.entries.length === 2, plan.entries.length);
+  check('entry 1 is at market, entry 2 lower', first.price === t.price && second.price < first.price, [first.price, second.price, t.price]);
+  check('pullback entry stays above the stop', second.price > plan.stop, { second: second.price, stop: plan.stop });
+  check('allocations split the position', first.allocationPct + second.allocationPct === 100, plan.entries.map((e) => e.allocationPct));
+
+  // A weaker bull reading waits lower and puts less on at market.
+  const weak = verifyToken(t, goodSamples(30, t).map((s) => ({ ...s, returnPct: -5, maxUpPct: 8 })), now).estimates.plan;
+  if (weak) {
+    check('weaker bull reading enters lower', weak.entries[1].price < second.price, { weak: weak.entries[1].price, strong: second.price });
+    check('weaker bull reading puts less on at market', weak.entries[0].allocationPct <= first.allocationPct, [weak.entries[0].allocationPct, first.allocationPct]);
+  }
 }
 
 // 9. Candle aggregation (the live chart).

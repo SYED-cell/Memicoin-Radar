@@ -51,4 +51,6 @@ export interface ChainProvider {
   getMetadataJson(uri: string): Promise<Record<string, unknown> | null>;
   /** Live pump.fun bonding-curve reserves, keyed by curve address. Missing/closed curves are omitted. */
   getBondingCurves(addresses: string[]): Promise<Map<string, CurveState>>;
+  /** Finds a token's bonding curve on-chain when the launch event did not carry it. */
+  findBondingCurve(mint: string): Promise<string | null>;
 }

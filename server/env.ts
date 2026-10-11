@@ -54,6 +54,15 @@ export const config = {
   ),
   dedicatedRpc: Boolean(env.SOLANA_RPC_URL),
   pumpPortalKey: env.PUMPPORTAL_API_KEY ?? '',
+  /** ave.ai token data — used as a cross-check on market cap and liquidity when a key is set. */
+  aveApiKey: env.AVE_API_KEY ?? '',
+  aveApi: (env.AVE_API ?? 'https://prod.ave-api.com/v2').replace(/\/$/, ''),
+  /**
+   * Robinhood credentials are accepted and kept server-side for reading account data only.
+   * Nothing in this app places real orders, and nothing should without you wiring it deliberately.
+   */
+  robinhoodApiKey: env.ROBINHOOD_API_KEY ?? '',
+  robinhoodApiSecret: env.ROBINHOOD_API_SECRET ?? '',
   jupiterApi: (env.JUPITER_API ?? 'https://lite-api.jup.ag').replace(/\/$/, ''),
   ipfsGateway: env.IPFS_GATEWAY ?? 'https://4everland.io/ipfs/',
 
@@ -64,9 +73,10 @@ export const config = {
 
   monitor: {
     pollIntervalMs: 3500,
-    batchSize: 20,
+    batchSize: 30,
     maxTokens: 300,
-    activeWindowMs: 20 * 60_000,
+    // Everything tracked stays in the refresh rotation; the batch order decides what goes first.
+    activeWindowMs: 6 * 3_600_000,
     tractionMcapUsd: 12_000,
     securityScanPerMinute: 30,
     // On-chain pricing: one getMultipleAccounts call per tick (100 accounts max per Solana RPC).

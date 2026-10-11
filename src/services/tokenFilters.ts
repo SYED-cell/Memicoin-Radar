@@ -16,12 +16,15 @@ export interface TokenFilters {
   dir: SortDir;
 }
 
+/** Only coins the opportunity engine scores at or above this are listed. */
+export const MIN_OPPORTUNITY = 60;
+
 export const DEFAULT_FILTERS: TokenFilters = {
   query: '',
   tab: 'all',
   signal: 'all',
   risk: 'all',
-  minScore: 0,
+  minScore: MIN_OPPORTUNITY,
   minLiquidity: 0,
   sort: 'detectedAt',
   dir: 'desc',

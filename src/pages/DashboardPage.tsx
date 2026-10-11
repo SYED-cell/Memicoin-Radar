@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMarket } from '../context/MarketContext';
 import { useTrading } from '../context/TradingContext';
 import { useNow } from '../hooks/useNow';
-import { isTrending, sortTokens } from '../services/tokenFilters';
+import { isTrending, MIN_OPPORTUNITY, sortTokens } from '../services/tokenFilters';
 import type { Token } from '../types';
 import { cn } from '../utils/cn';
 import { formatAge, formatCompactUsd, formatNumber, formatSignedUsd, formatTime, formatUsd } from '../utils/format';
@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const now = useNow(5_000);
   const [moverTab, setMoverTab] = useState<'gainers' | 'losers'>('gainers');
 
-  const scored = useMemo(() => tokens.filter((t) => t.signal !== 'INSUFFICIENT DATA'), [tokens]);
+  const scored = useMemo(() => tokens.filter((t) => t.signal !== 'INSUFFICIENT DATA' && t.score >= MIN_OPPORTUNITY), [tokens]);
   const watch = useMemo(() => sortTokens(scored.filter((t) => t.signal === 'WATCH'), 'score', 'desc').slice(0, 6), [scored]);
   const highRisk = useMemo(() => sortTokens(scored.filter((t) => t.riskScore >= 60 && t.volume5m > 0), 'volume5m', 'desc').slice(0, 5), [scored]);
   const trending = useMemo(() => sortTokens(scored.filter(isTrending), 'volume5m', 'desc').slice(0, 6), [scored]);
