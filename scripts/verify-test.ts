@@ -2,6 +2,7 @@
  * Unit checks for the strict verified-coin filter. Usage: node scripts/verify-test.ts
  */
 import { curveMarket, decodeCurve } from '../shared/bondingCurve.ts';
+import { buildLevelsPlan } from '../shared/levels.ts';
 import { toCandles } from '../shared/candles.ts';
 import { createToken, evaluate } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
@@ -206,6 +207,19 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
   check('a non-critical failure is still recorded', isTrackableSetup(verifyToken({ ...t, priceChange5m: -3 }, [], now)));
   check('a critical failure is never recorded', !isTrackableSetup(verifyToken({ ...t, mintAuthorityDisabled: false }, [], now)));
   check('a creator dumping is never recorded', !isTrackableSetup(verifyToken({ ...t, creatorSoldPct: 70 }, [], now)));
+}
+
+// 8d. Entry levels read from price action, used until comparable outcomes exist.
+{
+  const lp = buildLevelsPlan(t, now)!;
+  check('price-action plan is produced', !!lp && lp.entries.length === 2, lp && lp.entries.length);
+  check('entry 1 is the current market cap', lp.entries[0].price === t.marketCap, [lp.entries[0].price, t.marketCap]);
+  check('entry 2 sits below entry 1', lp.entries[1].price < lp.entries[0].price, lp.entries.map((e) => e.price));
+  check('entry 2 stays above the stop', lp.entries[1].price > lp.stop, { entry2: lp.entries[1].price, stop: lp.stop });
+  check('targets ascend above market', lp.tp1 > t.marketCap && lp.tp2 > lp.tp1 && lp.tp3 > lp.tp2, [lp.tp1, lp.tp2, lp.tp3]);
+  check('allocations split the position', lp.entries[0].allocationPct + lp.entries[1].allocationPct === 100, lp.entries.map((e) => e.allocationPct));
+  check('stop is never more than 25% below market', lp.stopPct <= 25.001, lp.stopPct);
+  check('a token with no history gets no levels', buildLevelsPlan({ ...t, history: [] }, now) === null);
 }
 
 // 9. Candle aggregation (the live chart).

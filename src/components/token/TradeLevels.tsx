@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { buildLevelsPlan } from '../../../shared/levels';
 import type { ChartLevel } from '../../components/charts/CandleChart';
 import { get } from '../../lib/api';
-import type { EvidenceStats, Token, VerificationResult } from '../../types';
-import { formatCompactUsd, formatPercent } from '../../utils/format';
+import type { EvidenceStats, PlanEntry, Token, TradePlan, VerificationResult } from '../../types';
+import { formatCompactUsd } from '../../utils/format';
 
 /**
- * Entry / stop / target levels for the chart, in market-cap terms so they line up with the candles.
+ * Entry levels for the chart and the strip below it, in market-cap terms so they match the candles.
  *
- * The plan comes from the strict filter, which derives it only from recorded outcomes of comparable
- * setups. Until enough of those exist there is no plan, and we say so rather than inventing levels:
- * what we can show honestly is the range the market cap has actually traded in.
+ * Two sources, in order: the strict filter's plan, which is derived from recorded outcomes of
+ * comparable setups, and — when that evidence does not exist yet — levels read from the token's own
+ * price action. The second is structure, not a forecast, and is labelled as such everywhere.
  */
 export function useTradeLevels(token: Token) {
   const [result, setResult] = useState<VerificationResult | null>(null);
@@ -30,73 +31,91 @@ export function useTradeLevels(token: Token) {
   }, [token.mint]);
 
   const supply = token.supply || 1e9;
-  const plan = result?.estimates.plan ?? null;
+  const modelPlan = result?.estimates.plan ?? null;
+  // The model plan is priced per token; the fallback is already in market-cap terms.
   const toMcap = (price: number) => price * supply;
+  const levelsPlan = useMemo(() => (modelPlan ? null : buildLevelsPlan(token)), [modelPlan, token]);
+
+  const plan: TradePlan | null = modelPlan ?? levelsPlan;
+  const asMcap = (price: number) => (modelPlan ? toMcap(price) : price);
+  const kind: 'model' | 'price-action' | 'none' = modelPlan ? 'model' : levelsPlan ? 'price-action' : 'none';
 
   const levels: ChartLevel[] = plan
     ? [
-        ...plan.entries.map((e, i) => ({ label: `Entry ${i + 1}`, value: toMcap(e.price), color: 'var(--color-accent)' })),
-        { label: 'Stop', value: toMcap(plan.stop), color: 'var(--color-danger)' },
-        { label: 'TP1', value: toMcap(plan.tp1), color: 'var(--color-primary)' },
-        { label: 'TP2', value: toMcap(plan.tp2), color: 'var(--color-primary)' },
+        ...plan.entries.map((e, i) => ({ label: `Entry ${i + 1}`, value: asMcap(e.price), color: 'var(--color-accent)' })),
+        { label: 'Stop', value: asMcap(plan.stop), color: 'var(--color-danger)' },
+        { label: 'TP1', value: asMcap(plan.tp1), color: 'var(--color-primary)' },
+        { label: 'TP2', value: asMcap(plan.tp2), color: 'var(--color-primary)' },
       ]
     : [];
 
-  return { levels, plan, result, evidence, toMcap };
+  return { levels, plan, kind, result, evidence, asMcap, levelsPlan };
 }
 
-/** Levels strip under the chart: the model's plan when it exists, the observed range otherwise. */
+/** Levels strip under the chart. */
 export function TradeLevels({ token, data }: { token: Token; data: ReturnType<typeof useTradeLevels> }) {
-  const { plan, result, evidence, toMcap } = data;
-  const window = token.history.slice(-120);
-  const caps = window.map((h) => h.mcap).filter((m) => m > 0);
-  const low = caps.length ? Math.min(...caps) : 0;
-  const high = caps.length ? Math.max(...caps) : 0;
+  const { plan, kind, result, evidence, asMcap, levelsPlan } = data;
 
-  if (plan) {
-    const bull = result?.estimates.comparables?.bullProb ?? 0;
+  if (!plan) {
     return (
-      <div className="mt-2 overflow-hidden rounded-2xl border border-line bg-bg-2/60 text-xs">
-        <div className="flex items-center justify-between border-b border-line bg-surface/50 px-3 py-2">
-          <span className="font-semibold text-fg">Entry plan</span>
-          <span className="num text-[11px] text-muted">
-            Bull <span className="font-semibold text-primary">{Math.round(bull * 100)}%</span> · R/R <span className="font-semibold text-fg">{plan.rr.toFixed(2)}</span>
-          </span>
-        </div>
-        <ol className="divide-y divide-line">
-          {plan.entries.map((e, i) => (
-            <li key={e.label} className="flex items-center gap-3 px-3 py-2">
-              <span className="grid size-6 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 text-[11px] font-bold text-accent">{i + 1}</span>
-              <span className="min-w-0 flex-1">
-                <span className="num block font-semibold text-fg">{formatCompactUsd(toMcap(e.price))}</span>
-                <span className="block truncate text-[11px] text-muted">{e.reason}</span>
-              </span>
-              <span className="num shrink-0 rounded-lg border border-line bg-surface/60 px-2 py-1 text-[11px] font-semibold">{e.allocationPct}%</span>
-            </li>
-          ))}
-        </ol>
-        <div className="num grid grid-cols-2 gap-2 border-t border-line p-2.5">
-          <Cell label={`Stop (−${plan.stopPct.toFixed(0)}%)`} value={formatCompactUsd(toMcap(plan.stop))} tone="text-danger" />
-          <Cell label="Targets" value={`${formatCompactUsd(toMcap(plan.tp1))} · ${formatCompactUsd(toMcap(plan.tp2))} · ${formatCompactUsd(toMcap(plan.tp3))}`} tone="text-primary" />
-        </div>
-        <p className="px-3 pb-2.5 text-[11px] text-muted">
-          Model estimate from {result?.estimates.comparables?.n ?? 0} comparable setups — not a prediction or advice. Invalidate if: {plan.invalidation.join('; ')}.
-        </p>
-      </div>
+      <p className="mt-2 rounded-xl border border-line bg-bg-2/60 p-2.5 text-[11px] text-muted">
+        No entry levels yet — {token.symbol} needs a few minutes of recorded price action before its range means anything.
+      </p>
     );
   }
 
+  const bull = result?.estimates.comparables?.bullProb;
+  const model = kind === 'model';
+
   return (
-    <div className="mt-2 rounded-xl border border-line bg-bg-2/60 p-2.5 text-xs">
-      <div className="num grid grid-cols-3 gap-2">
-        <Cell label="Now" value={formatCompactUsd(token.marketCap)} />
-        <Cell label="Range low" value={low ? formatCompactUsd(low) : '—'} tone="text-danger" />
-        <Cell label="Range high" value={high ? formatCompactUsd(high) : '—'} tone="text-primary" />
+    <div className="mt-2 overflow-hidden rounded-2xl border border-line bg-bg-2/60 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-surface/50 px-3 py-2">
+        <span className="flex items-center gap-2">
+          <span className="font-semibold text-fg">Entry plan</span>
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${model ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line-strong bg-surface-2 text-muted'}`}>
+            {model ? 'Model estimate' : 'From price action'}
+          </span>
+        </span>
+        <span className="num text-[11px] text-muted">
+          {model && bull !== undefined && (
+            <>
+              Bull <span className="font-semibold text-primary">{Math.round(bull * 100)}%</span> ·{' '}
+            </>
+          )}
+          R/R <span className="font-semibold text-fg">{plan.rr.toFixed(2)}</span>
+        </span>
       </div>
-      <p className="mt-2 text-[11px] text-muted">
-        No entry plan for this token: {result?.status === 'AVOID' ? 'it fails a critical safety check.' : `the filter needs ${evidence?.required ?? 20} recorded outcomes of comparable setups and has ${evidence?.resolved ?? 0}.`} The
-        figures above are the market cap now and the range it has traded in while tracked — observations, not a recommendation.
-        {token.priceChange5m !== null && ` Moved ${formatPercent(token.priceChange5m)} in the last 5 minutes.`}
+
+      <ol className="divide-y divide-line">
+        {plan.entries.map((e: PlanEntry, i: number) => (
+          <li key={e.label} className="flex items-center gap-3 px-3 py-2">
+            <span className="grid size-6 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 text-[11px] font-bold text-accent">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <span className="num block font-semibold text-fg">{formatCompactUsd(asMcap(e.price))}</span>
+              <span className="block truncate text-[11px] text-muted">{e.reason}</span>
+            </span>
+            <span className="num shrink-0 rounded-lg border border-line bg-surface/60 px-2 py-1 text-[11px] font-semibold">{e.allocationPct}%</span>
+          </li>
+        ))}
+      </ol>
+
+      <div className="num grid grid-cols-2 gap-2 border-t border-line p-2.5">
+        <Cell label={`Stop (−${plan.stopPct.toFixed(0)}%)`} value={formatCompactUsd(asMcap(plan.stop))} tone="text-danger" />
+        <Cell label="Targets" value={`${formatCompactUsd(asMcap(plan.tp1))} · ${formatCompactUsd(asMcap(plan.tp2))} · ${formatCompactUsd(asMcap(plan.tp3))}`} tone="text-primary" />
+      </div>
+
+      <p className="px-3 pb-2.5 text-[11px] text-muted">
+        {model ? (
+          <>Model estimate from {result?.estimates.comparables?.n ?? 0} comparable setups — not a prediction or advice.</>
+        ) : (
+          <>
+            Read from {levelsPlan?.samples ?? 0} readings over the last {levelsPlan?.windowMinutes ?? 30} minutes: floor {formatCompactUsd(levelsPlan?.support ?? 0)}, ceiling{' '}
+            {formatCompactUsd(levelsPlan?.resistance ?? 0)}. Observed structure, not a forecast — the filter rates this token{' '}
+            <span className="font-semibold text-fg">{result?.status ?? token.signal}</span>
+            {evidence && evidence.resolved < evidence.required && <> and has {evidence.resolved}/{evidence.required} comparable outcomes for a model plan</>}.
+          </>
+        )}{' '}
+        Invalidate if: {plan.invalidation.join('; ')}.
       </p>
     </div>
   );
