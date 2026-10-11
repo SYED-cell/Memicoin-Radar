@@ -5,7 +5,7 @@ import { curveMarket, decodeCurve } from '../shared/bondingCurve.ts';
 import { toCandles } from '../shared/candles.ts';
 import { createToken, evaluate } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
-import { formatVerifiedTelegram, STRICT, verifyToken, type OutcomeSample } from '../shared/verification.ts';
+import { formatVerifiedTelegram, isTrackableSetup, STRICT, verifyToken, type OutcomeSample } from '../shared/verification.ts';
 
 let failures = 0;
 const check = (name: string, cond: boolean, extra?: unknown) => {
@@ -198,6 +198,14 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
     check('weaker bull reading enters lower', weak.entries[1].price < second.price, { weak: weak.entries[1].price, strong: second.price });
     check('weaker bull reading puts less on at market', weak.entries[0].allocationPct <= first.allocationPct, [weak.entries[0].allocationPct, first.allocationPct]);
   }
+}
+
+// 8c. Which setups get recorded as comparable evidence.
+{
+  check('a healthy setup is recorded', isTrackableSetup(v0));
+  check('a non-critical failure is still recorded', isTrackableSetup(verifyToken({ ...t, priceChange5m: -3 }, [], now)));
+  check('a critical failure is never recorded', !isTrackableSetup(verifyToken({ ...t, mintAuthorityDisabled: false }, [], now)));
+  check('a creator dumping is never recorded', !isTrackableSetup(verifyToken({ ...t, creatorSoldPct: 70 }, [], now)));
 }
 
 // 9. Candle aggregation (the live chart).

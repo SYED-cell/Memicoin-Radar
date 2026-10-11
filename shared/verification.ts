@@ -426,7 +426,11 @@ export const summarizeVerification = (v: VerificationResult): VerificationSummar
  * Recording outcomes for these builds the comparable-setup evidence base over time.
  */
 export function isTrackableSetup(v: VerificationResult): boolean {
-  return v.checks.filter((c) => c.key !== 'comparables' && c.key !== 'riskReward').every((c) => c.outcome === 'pass');
+  const core = v.checks.filter((c) => c.key !== 'comparables' && c.key !== 'riskReward');
+  // Every critical safety check must pass: dangerous setups are excluded, not measured. The rest
+  // may fail or be unmeasurable — that spread is exactly what the outcome statistics describe.
+  // Requiring all twelve to pass recorded nothing at all, so no plan could ever be built.
+  return core.every((c) => !c.critical || c.outcome === 'pass') && core.filter((c) => c.outcome === 'pass').length >= 6;
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
