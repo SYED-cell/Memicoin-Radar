@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConnectionDot } from '../components/layout/ConnectionStatus';
 import { AlertCard } from '../components/token/AlertCard';
+import { EntryLevelsCard } from '../components/token/EntryLevelsCard';
 import { StrictFilterCard } from '../components/token/StrictFilterCard';
 import { TokenCard } from '../components/token/TokenCard';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -187,6 +188,8 @@ export default function DashboardPage() {
           </Section>
         </div>
       </div>
+
+      <EntryLevelsCard tokens={scored} />
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 2xl:grid-cols-4">
         <Section
