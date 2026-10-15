@@ -37,7 +37,7 @@ export function StatCard({ label, value, change, hint, icon: Icon, tone = 'prima
           </span>
         )}
       </div>
-      <div className="num truncate text-xl font-bold tracking-tight sm:text-2xl">{value}</div>
+      <div className="display truncate text-2xl sm:text-[28px]">{value}</div>
       <div className="flex min-h-4 items-center justify-between gap-2">
         {change !== undefined ? (
           <span className={cn('num text-xs font-semibold', changeColor(change))}>{formatPercent(change)}</span>

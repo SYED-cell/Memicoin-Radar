@@ -238,7 +238,7 @@ export function Section({ title, action, children, className }: { title?: ReactN
     <section className={cn('card min-w-0 p-4 sm:p-5', className)}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between gap-3">
-          {title && <h2 className="section-title">{title}</h2>}
+          {title && <h2 className="section-title rail">{title}</h2>}
           {action}
         </div>
       )}

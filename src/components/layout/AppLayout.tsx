@@ -8,6 +8,7 @@ import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { LoadingState, Spinner } from '../ui/LoadingState';
 import { MobileBottomNav } from './MobileBottomNav';
 import { Navbar } from './Navbar';
+import { TickerStrip } from './TickerStrip';
 import { Sidebar } from './Sidebar';
 
 /** Redirects anonymous visitors to /login, remembering where they were headed. */
@@ -86,6 +87,7 @@ export function AppLayout() {
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Navbar />
+          <TickerStrip />
           <VerifyBanner />
           {error && status === 'ready' && (
             <div className="border-b border-danger/30 bg-danger/10 px-4 py-2 text-center text-xs text-danger" role="alert">
