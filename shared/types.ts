@@ -483,6 +483,8 @@ export interface User {
   email: string;
   emailVerified: boolean;
   createdAt: number;
+  /** Pro subscription expiry; absent or past means the free tier. */
+  proUntil?: number | null;
 }
 
 export interface WatchItem {

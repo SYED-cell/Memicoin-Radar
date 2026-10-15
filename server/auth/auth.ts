@@ -18,12 +18,13 @@ interface UserRow {
   name: string;
   password_hash: string;
   email_verified: number;
+  pro_until?: number | null;
   failed_logins: number;
   locked_until: number | null;
   created_at: number;
 }
 
-export const toUser = (r: UserRow): User => ({ id: r.id, email: r.email, name: r.name, emailVerified: Boolean(r.email_verified), createdAt: r.created_at });
+export const toUser = (r: UserRow): User => ({ id: r.id, email: r.email, name: r.name, emailVerified: Boolean(r.email_verified), createdAt: r.created_at, proUntil: r.pro_until ?? null });
 
 export function getUser(id: string): User | null {
   const r = one<UserRow>('SELECT * FROM users WHERE id = ?', id);

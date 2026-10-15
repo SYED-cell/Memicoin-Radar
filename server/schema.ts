@@ -172,4 +172,22 @@ export const MIGRATIONS: string[] = [
      sent_at INTEGER NOT NULL,
      PRIMARY KEY (user_id, mint)
    );`,
+  // v4: Pro subscriptions paid in USDT. Each pending payment carries a unique amount, which is
+  // how an incoming transfer is matched to the account that owes it.
+  `ALTER TABLE users ADD COLUMN pro_until INTEGER;
+   CREATE TABLE payments (
+     id TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     network TEXT NOT NULL,
+     address TEXT NOT NULL,
+     amount TEXT NOT NULL,
+     days INTEGER NOT NULL,
+     status TEXT NOT NULL DEFAULT 'pending',
+     tx_hash TEXT,
+     created_at INTEGER NOT NULL,
+     expires_at INTEGER NOT NULL,
+     paid_at INTEGER
+   );
+   CREATE INDEX idx_payments_pending ON payments(status, network, expires_at);
+   CREATE UNIQUE INDEX idx_payments_amount ON payments(network, amount, status);`,
 ];

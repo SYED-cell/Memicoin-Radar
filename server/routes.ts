@@ -13,6 +13,7 @@ import { invalidateHeld, listAlerts, refreshUsers } from './services/alerts.ts';
 import { addClient } from './services/sse.ts';
 import { evidenceStats, verify } from './services/verification.ts';
 import { formatVerifiedTelegram } from '../shared/verification.ts';
+import * as billing from './services/billing.ts';
 import * as telegram from './services/telegram.ts';
 import * as trading from './services/trading.ts';
 import { addWatch, clearWatch, DEFAULT_SETTINGS, getSettings, getWatchlist, invalidateUserCaches, removeWatch, saveSettings } from './services/userData.ts';
@@ -147,9 +148,13 @@ router.get('/api/tokens/:mint/creator', requireAuth, intelLimit, async (ctx) => 
   return { intel: await getCreatorIntel(monitor.chain, t, t.creator ? monitor.creatorLaunches(t.creator).filter((l) => l.mint !== t.id) : []) };
 });
 router.get('/api/tokens/:mint/verification', requireAuth, async (ctx) => {
+  const pro = billing.isPro(ctx.userId!);
   const t = await tokenOr404(ctx);
   const result = verify(t);
-  return { result, evidence: evidenceStats(), telegramPreview: result.status === 'TRADEABLE' ? formatVerifiedTelegram(result, config.appUrl) : null };
+  // Entry, stop and targets are the paid product. Everything else — status, checks, evidence —
+  // stays open, so a free account can still see why a coin is rated the way it is.
+  const gated = pro ? result : { ...result, estimates: { ...result.estimates, plan: null } };
+  return { result: gated, pro, evidence: evidenceStats(), telegramPreview: pro && result.status === 'TRADEABLE' ? formatVerifiedTelegram(result, config.appUrl) : null };
 });
 router.get('/api/verification/stats', requireAuth, () => ({ evidence: evidenceStats() }));
 router.get('/api/tokens/:mint/security', requireAuth, intelLimit, async (ctx) => (await scanSecurity(monitor.chain, await tokenOr404(ctx))).intel);
@@ -242,6 +247,23 @@ function sanitizeSettings(input: unknown, current: UserSettings): UserSettings {
     },
   };
 }
+
+/* ───────────────────────── Pro / billing ───────────────────────── */
+
+router.get('/api/billing/status', requireAuth, (ctx) => ({
+  enabled: billing.billingEnabled(),
+  pro: billing.isPro(ctx.userId!),
+  proUntil: billing.proUntil(ctx.userId!),
+  priceUsdt: config.billing.priceUsdt,
+  days: config.billing.days,
+  networks: { trc20: Boolean(config.billing.trc20Address), erc20: Boolean(config.billing.erc20Address) },
+  pending: billing.pendingIntent(ctx.userId!),
+}));
+
+router.post('/api/billing/intent', requireAuth, async (ctx) => {
+  const { network } = validate(await ctx.body(), { network: v.string({ pattern: /^(trc20|erc20)$/, message: 'network must be trc20 or erc20' }) });
+  return { intent: billing.createIntent(ctx.userId!, network as billing.Network) };
+});
 
 router.get('/api/settings', requireAuth, (ctx) => ({ settings: getSettings(ctx.userId!) }));
 router.put('/api/settings', requireAuth, async (ctx) => {

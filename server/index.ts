@@ -10,6 +10,7 @@ import { log } from './lib/log.ts';
 import { monitor } from './pipeline/monitor.ts';
 import { router } from './routes.ts';
 import { startAlerts, stopAlerts } from './services/alerts.ts';
+import { startBilling, stopBilling } from './services/billing.ts';
 import { startSse, stopSse } from './services/sse.ts';
 import { startTelegram, stopTelegram } from './services/telegram.ts';
 import { startTrading, stopTrading } from './services/trading.ts';
@@ -104,6 +105,7 @@ async function main() {
   await monitor.start();
   startSse();
   startAlerts();
+  startBilling();
   startTrading();
   startVerification();
   refreshPinned();
@@ -118,6 +120,7 @@ function shutdown(signal: string) {
   log.info('server', `${signal} received — shutting down`);
   stopSse();
   stopAlerts();
+  stopBilling();
   stopTrading();
   stopVerification();
   stopTelegram();

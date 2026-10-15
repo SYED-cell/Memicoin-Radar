@@ -63,6 +63,16 @@ export const config = {
    */
   robinhoodApiKey: env.ROBINHOOD_API_KEY ?? '',
   robinhoodApiSecret: env.ROBINHOOD_API_SECRET ?? '',
+
+  /** Pro subscriptions, paid in USDT to wallets you control. No private keys live here. */
+  billing: {
+    trc20Address: env.USDT_TRC20_ADDRESS ?? '',
+    erc20Address: env.USDT_ERC20_ADDRESS ?? '',
+    priceUsdt: Number(env.PRO_PRICE_USDT ?? 29),
+    days: Number(env.PRO_DAYS ?? 30),
+    trongridKey: env.TRONGRID_API_KEY ?? '',
+    etherscanKey: env.ETHERSCAN_API_KEY ?? '',
+  },
   jupiterApi: (env.JUPITER_API ?? 'https://lite-api.jup.ag').replace(/\/$/, ''),
   ipfsGateway: env.IPFS_GATEWAY ?? 'https://4everland.io/ipfs/',
 

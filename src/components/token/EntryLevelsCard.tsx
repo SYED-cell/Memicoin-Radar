@@ -1,7 +1,8 @@
-import { Crosshair } from 'lucide-react';
+import { Crosshair, Lock } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { buildLevelsPlan } from '../../../shared/levels';
+import { useAuth } from '../../context/AuthContext';
 import type { Token } from '../../types';
 import { formatCompactUsd } from '../../utils/format';
 import { EmptyState } from '../ui/EmptyState';
@@ -12,6 +13,8 @@ import { Section, SignalBadge, TokenAvatar } from '../ui/primitives';
  * Same figures as the coin page, so the home screen answers "where would I get in" directly.
  */
 export function EntryLevelsCard({ tokens, limit = 5 }: { tokens: Token[]; limit?: number }) {
+  const { user } = useAuth();
+  const pro = (user?.proUntil ?? 0) > Date.now();
   const rows = useMemo(
     () =>
       tokens
@@ -32,7 +35,18 @@ export function EntryLevelsCard({ tokens, limit = 5 }: { tokens: Token[]; limit?
       }
       action={<span className="text-[11px] text-muted">From price action</span>}
     >
-      {rows.length ? (
+      {!pro ? (
+        <div className="rounded-xl border border-line bg-bg-2/60 p-3 text-center">
+          <Lock className="mx-auto size-5 text-primary" />
+          <p className="mt-1.5 text-sm font-semibold">Entry levels are part of Pro</p>
+          <p className="mt-1 text-xs text-muted">
+            {rows.length ? `${rows.length} coins have levels right now` : 'Levels appear as coins build price action'} — two entries with their split, stop and targets.
+          </p>
+          <Link to="/pro" className="btn btn-primary btn-sm mt-2.5">
+            Unlock with Pro
+          </Link>
+        </div>
+      ) : rows.length ? (
         <ul className="divide-y divide-line">
           {rows.map(({ token, plan }) => (
             <li key={token.id}>

@@ -20,22 +20,42 @@ export interface LevelsPlan extends TradePlan {
 /** Needs enough points that "the range" means something. */
 const MIN_POINTS = 5;
 
+/** Typical move between readings, as a fraction — how much room a stop needs to survive noise. */
+function volatility(caps: number[]): number {
+  const steps: number[] = [];
+  for (let i = 1; i < caps.length; i++) if (caps[i - 1] > 0) steps.push(Math.abs(caps[i] / caps[i - 1] - 1));
+  if (!steps.length) return 0.05;
+  steps.sort((a, b) => a - b);
+  return steps[Math.floor(steps.length * 0.8)] * 2;
+}
+
 export function buildLevelsPlan(t: Token, now = Date.now(), windowMs = 30 * 60_000): LevelsPlan | null {
   const points = t.history.filter((h) => h.t >= now - windowMs && h.mcap > 0);
   const caps = points.map((h) => h.mcap);
   const current = t.marketCap;
   if (caps.length < MIN_POINTS || !(current > 0)) return null;
 
-  const support = Math.min(...caps);
-  const resistance = Math.max(...caps, current);
+  // Quantiles, not extremes. A coin that ran 30x from launch has an all-time low that says nothing
+  // about where it trades now, and one bad tick should not define the ceiling either. The recent
+  // half of the window is weighted double so a level follows the market instead of its history.
+  const half = Math.floor(points.length / 2);
+  const weighted = [...caps, ...points.slice(half).map((h) => h.mcap)].sort((a, b) => a - b);
+  const at = (q: number) => weighted[Math.min(weighted.length - 1, Math.max(0, Math.round(q * (weighted.length - 1))))];
+  const support = Math.min(at(0.2), current);
+  const resistance = Math.max(at(0.9), current);
 
   // Momentum decides how patient the second entry is: a coin pushing up is waited for less.
   const momentum = t.priceChange5m ?? t.priceChange1h ?? 0;
   const dipPct = Math.max(3, Math.min(12, 8 - momentum / 4));
-  const pullback = Math.max(support, current * (1 - dipPct / 100));
+  // Prefer the observed floor when it sits inside the dip band — a level the market defended beats
+  // a round percentage — but never place the entry above the market.
+  const byPercent = current * (1 - dipPct / 100);
+  const pullback = Math.min(current * 0.995, support > byPercent ? support : Math.max(byPercent, support));
 
-  // Stop sits under the observed floor, bounded so a quiet range cannot imply a reckless stop.
-  const stop = Math.max(support * 0.9, current * 0.75);
+  // Stop sits under the floor with room for noise, bounded so a quiet range cannot imply a
+  // reckless stop and a volatile one cannot imply a stop that any wick would take out.
+  const noise = Math.max(0.04, Math.min(0.15, volatility(caps)));
+  const stop = Math.max(support * (1 - noise), current * 0.75);
   const stopPct = ((current - stop) / current) * 100;
 
   const range = Math.max(resistance - support, current * 0.05);

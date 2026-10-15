@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BadgeCheck,
   Bell,
   Bot,
   CandlestickChart,
@@ -60,6 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Account',
     items: [
+      { to: '/pro', label: 'Pro', icon: BadgeCheck },
       { to: '/settings/telegram', label: 'Telegram Alerts', icon: Send },
       { to: '/settings', label: 'Settings', icon: Settings, end: true },
       { to: '/how-it-works', label: 'How It Works', icon: HelpCircle },

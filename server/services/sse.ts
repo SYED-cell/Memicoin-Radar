@@ -58,7 +58,7 @@ export function addClient(userId: string, res: ServerResponse) {
   res.on('close', () => clients.delete(client));
 }
 
-export function sendToUser(userId: string, event: 'alert' | 'portfolio' | 'telegram', data: unknown) {
+export function sendToUser(userId: string, event: 'alert' | 'portfolio' | 'telegram' | 'pro', data: unknown) {
   for (const c of clients) if (c.userId === userId) write(c.out, event, data);
 }
 

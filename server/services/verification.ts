@@ -6,6 +6,7 @@ import { config } from '../env.ts';
 import { log } from '../lib/log.ts';
 import { monitor } from '../pipeline/monitor.ts';
 import { allUserIdsCached, deliver } from './alerts.ts';
+import { isPro } from './billing.ts';
 import { enqueue } from './telegram.ts';
 import { getSettings } from './userData.ts';
 
@@ -122,7 +123,8 @@ function sendScoreReports(v: VerificationResult, t: Token, now: number) {
   let text: string | null = null;
   for (const userId of allUserIdsCached()) {
     const tg = getSettings(userId).telegram;
-    if (!tg.enabled || tg.mode !== 'score' || t.score < tg.minScore) continue;
+    // Buy signals to Telegram are part of Pro.
+    if (!tg.enabled || tg.mode !== 'score' || t.score < tg.minScore || !isPro(userId)) continue;
     const sent = one<{ sent_at: number }>('SELECT sent_at FROM telegram_sent WHERE user_id = ? AND mint = ?', userId, t.mint);
     if (sent && now - sent.sent_at < ALERT_COOLDOWN_MS) continue;
     text ??= formatVerifiedTelegram(v, config.appUrl);

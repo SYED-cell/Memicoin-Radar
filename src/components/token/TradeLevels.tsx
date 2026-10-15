@@ -1,4 +1,6 @@
+import { Lock } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { buildLevelsPlan } from '../../../shared/levels';
 import type { ChartLevel } from '../../components/charts/CandleChart';
 import { get } from '../../lib/api';
@@ -15,14 +17,16 @@ import { formatCompactUsd } from '../../utils/format';
 export function useTradeLevels(token: Token) {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [evidence, setEvidence] = useState<EvidenceStats | null>(null);
+  const [pro, setPro] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    get<{ result: VerificationResult; evidence: EvidenceStats }>(`/api/tokens/${token.mint}/verification`)
+    get<{ result: VerificationResult; evidence: EvidenceStats; pro: boolean }>(`/api/tokens/${token.mint}/verification`)
       .then((r) => {
         if (cancelled) return;
         setResult(r.result);
         setEvidence(r.evidence);
+        setPro(Boolean(r.pro));
       })
       .catch(() => undefined);
     return () => {
@@ -49,7 +53,7 @@ export function useTradeLevels(token: Token) {
       ]
     : [];
 
-  return { levels, plan, kind, result, evidence, asMcap, levelsPlan };
+  return { levels: pro ? levels : [], plan, kind, result, evidence, asMcap, levelsPlan, pro };
 }
 
 /** Levels strip under the chart. */
@@ -61,6 +65,22 @@ export function TradeLevels({ token, data }: { token: Token; data: ReturnType<ty
       <p className="mt-2 rounded-xl border border-line bg-bg-2/60 p-2.5 text-[11px] text-muted">
         No entry levels yet — {token.symbol} needs a few minutes of recorded price action before its range means anything.
       </p>
+    );
+  }
+
+  if (!data.pro) {
+    return (
+      <div className="mt-2 rounded-2xl border border-line bg-bg-2/60 p-3">
+        <p className="flex items-center gap-2 text-sm font-semibold">
+          <Lock className="size-4 text-primary" /> Entry levels are part of Pro
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Two entries with their split, the stop and three targets for {token.symbol} — plus the same on your home screen and as Telegram buy signals.
+        </p>
+        <Link to="/pro" className="btn btn-primary btn-sm mt-2.5">
+          Unlock with Pro
+        </Link>
+      </div>
     );
   }
 

@@ -44,6 +44,7 @@ const PaperTradingPage = lazyPage(() => import('./pages/PaperTradingPage'));
 const PortfolioPage = lazyPage(() => import('./pages/PortfolioPage'));
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'));
 const TelegramPage = lazyPage(() => import('./pages/TelegramPage'));
+const ProPage = lazyPage(() => import('./pages/ProPage'));
 const DailyReportPage = lazyPage(() => import('./pages/DailyReportPage'));
 const HowItWorksPage = lazyPage(() => import('./pages/HowItWorksPage'));
 const NotFoundPage = lazyPage(() => import('./pages/NotFoundPage'));
@@ -90,6 +91,7 @@ export default function App() {
                           <Route path="/portfolio" element={<PortfolioPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
                           <Route path="/settings/telegram" element={<TelegramPage />} />
+                          <Route path="/pro" element={<ProPage />} />
                           <Route path="/report" element={<DailyReportPage />} />
                           <Route path="/how-it-works" element={<HowItWorksPage />} />
                           <Route path="*" element={<NotFoundPage />} />

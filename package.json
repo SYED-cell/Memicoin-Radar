@@ -11,7 +11,7 @@
     "start": "node server/index.ts",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "node scripts/verify-test.ts",
+    "test": "node scripts/verify-test.ts && node scripts/billing-test.ts",
     "test:api": "node scripts/smoke.ts"
   },
   "dependencies": {
