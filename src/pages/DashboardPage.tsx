@@ -2,6 +2,7 @@ import { Activity, ArrowRight, Bell, Coins, Droplets, Eye, Flame, History, Radio
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConnectionDot } from '../components/layout/ConnectionStatus';
+import { MarketHero } from '../components/layout/MarketHero';
 import { AlertCard } from '../components/token/AlertCard';
 import { EntryLevelsCard } from '../components/token/EntryLevelsCard';
 import { StrictFilterCard } from '../components/token/StrictFilterCard';
@@ -70,7 +71,11 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="lg:hidden">
+        <MarketHero />
+      </div>
+
+      <div className="hidden grid-cols-2 gap-3 sm:gap-4 lg:grid lg:grid-cols-3 2xl:grid-cols-5">
         <StatCard label="Tokens tracked" value={formatNumber(stats.totalTokens)} hint={`${stats.launchesLastHour} launched in the last hour`} icon={Coins} trend={statsHistory.map((h) => h.tokens)} onClick={() => navigate('/tokens')} />
         <StatCard label="Launches detected" value={formatNumber(health?.launchesDetected ?? 0)} hint={health?.stream === 'open' ? 'Streaming live since server start' : 'Polling fallback'} icon={Radio} tone="accent" onClick={() => navigate('/tokens?tab=new')} />
         <StatCard label="24h volume" value={formatCompactUsd(stats.totalVolume)} hint="Across tracked tokens" icon={Activity} tone="accent" trend={statsHistory.map((h) => h.volume)} />
