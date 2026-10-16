@@ -8,6 +8,8 @@ import type { Token } from '../../types';
 import { cn } from '../../utils/cn';
 import { formatCompactUsd, formatPercent, formatSignedUsd, formatUsd, initials } from '../../utils/format';
 import { getSparkline } from '../../services/chartService';
+import { MIN_OPPORTUNITY } from '../../services/tokenFilters';
+import { EntryLevelsMobile } from '../token/EntryLevelsMobile';
 import { PriceText } from '../ui/PriceText';
 import { TokenAvatar } from '../ui/primitives';
 
@@ -67,6 +69,9 @@ export function MobileHome() {
 
   // The chart follows one coin, as the reference does: the biggest by default, any of the top
   // dozen on request. Charting the whole market at once says nothing you can act on.
+  // The entry card only considers coins the scoring engine has actually rated.
+  const scored = useMemo(() => tokens.filter((t) => t.signal !== 'INSUFFICIENT DATA' && t.score >= MIN_OPPORTUNITY), [tokens]);
+
   // Only coins we have actually watched for a while can be charted; a coin detected a minute ago
   // has two price points and would draw two identical bars.
   const choices = useMemo(() => {
@@ -189,6 +194,8 @@ export function MobileHome() {
           <p className="py-14 text-center text-sm text-muted">Collecting price history for ${focus?.symbol ?? 'this coin'}…</p>
         )}
       </section>
+
+      <EntryLevelsMobile tokens={scored} />
 
       <section className="card-ink p-4">
         <div className="mb-3 flex items-center justify-between">
