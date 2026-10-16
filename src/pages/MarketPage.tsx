@@ -72,18 +72,22 @@ export default function MarketPage() {
   const onSort = (key: SortKey) => update(filters.sort === key ? { dir: filters.dir === 'asc' ? 'desc' : 'asc' } : { sort: key, dir: 'desc' });
 
   return (
-    <div>
-      <PageHeader
-        title="Live tokens"
-        subtitle={
-          <span className="inline-flex items-center gap-2">
-            <ConnectionDot /> {tokens.length} tracked{lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleTimeString()}` : ''}
-          </span>
-        }
-      />
-      <div className="card mb-4 p-3 sm:p-4">
-        <FilterBar filters={filters} onChange={update} counts={counts} resultCount={results.length} />
+    <div className="space-y-3">
+      {/* On a phone the title and the status line are the two things you already know — the nav
+          said where you are and the navbar carries the connection pill. They earn their space
+          only once there is space. */}
+      <div className="hidden sm:block">
+        <PageHeader
+          title="Live tokens"
+          subtitle={
+            <span className="inline-flex items-center gap-2">
+              <ConnectionDot /> {tokens.length} tracked{lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleTimeString()}` : ''}
+            </span>
+          }
+        />
       </div>
+      <h1 className="sr-only">Live tokens</h1>
+      <FilterBar filters={filters} onChange={update} counts={counts} resultCount={results.length} />
       <div className="card overflow-hidden">
         {results.length === 0 ? (
           <EmptyState
@@ -99,7 +103,7 @@ export default function MarketPage() {
             }
           />
         ) : (
-          <TokenTable tokens={results} sort={filters.sort} dir={filters.dir} onSort={onSort} height="max(380px, calc(100dvh - 21rem))" />
+          <TokenTable tokens={results} sort={filters.sort} dir={filters.dir} onSort={onSort} height="max(380px, calc(100dvh - 17rem))" />
         )}
       </div>
     </div>

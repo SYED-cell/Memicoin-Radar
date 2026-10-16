@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useMarket } from '../../context/MarketContext';
 import type { Token } from '../../types';
@@ -12,8 +13,11 @@ import { formatCompactUsd, formatPercent } from '../../utils/format';
  */
 export function TickerStrip({ limit = 18 }: { limit?: number }) {
   const { tokens } = useMarket();
+  const { pathname } = useLocation();
   const items = useMemo(() => tokens.slice(0, limit), [tokens, limit]);
-  if (items.length < 4) return null;
+  // The tape belongs on the overview. On a list of coins it competes with the list itself.
+  // The tape belongs on the overview. On a list of coins it competes with the list itself.
+  if (items.length < 4 || (pathname !== '/' && pathname !== '/dashboard')) return null;
 
   // Longer lists need proportionally longer to pass, or they appear to speed up.
   const seconds = Math.max(30, items.length * 3.5);

@@ -43,9 +43,9 @@ function VerifyBanner() {
   const [devLink, setDevLink] = useState<string | null>(null);
   if (!user || user.emailVerified || !verificationRequired) return null;
   return (
-    <div className="border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-sm text-warning md:px-6" role="status">
+    <div className="border-b border-line bg-bg-2/60 px-4 py-2 text-xs text-muted md:px-6" role="status">
       <div className="mx-auto flex max-w-[2200px] flex-wrap items-center gap-x-3 gap-y-1">
-        <MailWarning className="size-4 shrink-0" aria-hidden />
+        <MailWarning className="size-3.5 shrink-0 text-warning" aria-hidden />
         <span className="min-w-0 flex-1">Verify {user.email} to enable paper trading and Telegram alerts.</span>
         {devLink && (
           <a href={devLink} className="font-semibold underline">

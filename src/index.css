@@ -140,6 +140,14 @@
   }
 }
 
+@utility no-scrollbar {
+  /* For strips you swipe rather than scroll — a bar under a row of tabs reads as a broken row. */
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer components {
   .card {
     @apply rounded-3xl border border-line shadow-(--shadow-card) backdrop-blur-sm;

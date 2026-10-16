@@ -56,30 +56,32 @@ export function TokenTable({ tokens, sort, dir, onSort, height = '70dvh' }: Toke
     return (
       <VirtualList
         items={tokens}
-        rowHeight={64}
+        rowHeight={72}
         height={height}
         ariaLabel="Tokens"
         getKey={(t) => t.id}
         renderRow={(t) => (
-          <Link to={`/tokens/${t.id}`} className="flex h-full items-center gap-3 border-b border-line px-3 transition active:bg-surface-2">
+          // Spacing separates rows, not rules: a divider per row turns a list into a grid of lines.
+          <Link to={`/tokens/${t.id}`} className="mx-1 flex h-full items-center gap-3 rounded-2xl px-2 transition active:bg-surface-2">
             <TokenAvatar token={t} size="sm" />
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
+              <p className="flex items-center gap-1.5 truncate text-[15px] font-semibold">
                 ${t.symbol} <NewBadge detectedAt={t.detectedAt} />
               </p>
-              <p className="flex items-center gap-1.5 truncate text-[11px] text-muted">
-                <SignalBadge signal={t.signal} short /> {formatAge(t.createdAt)}
+              {/* One quiet line: the name, and the rating only when it actually says something. */}
+              <p className="flex items-center gap-1.5 truncate text-xs text-muted">
+                <span className="truncate">{t.name || formatAge(t.createdAt)}</span>
+                {t.signal !== 'INSUFFICIENT DATA' && <SignalBadge signal={t.signal} short />}
               </p>
             </div>
-            {/* The shape of the move reads faster than the number; it drops out on narrow phones. */}
-            <Sparkline data={getSparkline(t, 24)} className="hidden h-7 w-14 shrink-0 min-[380px]:block" positive={(t.priceChange5m ?? 0) >= 0} />
+            <Sparkline data={getSparkline(t, 24)} className="hidden h-8 w-16 shrink-0 min-[380px]:block" positive={(t.priceChange5m ?? 0) >= 0} />
             <div className="shrink-0 text-right">
               {t.marketCap ? (
-                <PriceText key={t.updatedAt} value={formatCompactUsd(t.marketCap)} className="block animate-flash rounded px-1 text-sm font-semibold" />
+                <PriceText key={t.updatedAt} value={formatCompactUsd(t.marketCap)} className="block animate-flash rounded text-[15px] font-semibold" />
               ) : (
-                <p className="px-1 text-sm text-muted">pricing…</p>
+                <p className="text-sm text-subtle">—</p>
               )}
-              {t.priceChange5m !== null && <ChangeText value={t.priceChange5m} className="px-1 text-xs" />}
+              {t.priceChange5m !== null && <ChangeText value={t.priceChange5m} className="text-xs" />}
             </div>
           </Link>
         )}

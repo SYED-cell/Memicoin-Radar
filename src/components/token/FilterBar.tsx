@@ -31,7 +31,9 @@ export function FilterBar({ filters, onChange, counts, resultCount }: FilterBarP
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row">
+      {/* One row of chrome: search, and the door to everything else. Sorting lives behind it —
+          it is changed occasionally, so it does not deserve permanent space on a phone. */}
+      <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" aria-hidden />
           <input
@@ -48,34 +50,42 @@ export function FilterBar({ filters, onChange, counts, resultCount }: FilterBarP
             </button>
           )}
         </div>
-        <div className="flex gap-2">
-          <label className="sr-only" htmlFor="sort-select">
-            Sort by
-          </label>
-          <select id="sort-select" value={filters.sort} onChange={(e) => onChange({ sort: e.target.value as TokenFilters['sort'] })} className="input min-w-0 flex-1 sm:w-40 sm:flex-none">
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                Sort: {o.label}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn btn-outline px-3"
-            onClick={() => onChange({ dir: filters.dir === 'asc' ? 'desc' : 'asc' })}
-            aria-label={filters.dir === 'asc' ? 'Sort ascending (click for descending)' : 'Sort descending (click for ascending)'}
-          >
-            {filters.dir === 'asc' ? <ArrowUpNarrowWide className="size-4" /> : <ArrowDownWideNarrow className="size-4" />}
-          </button>
-          <button className={cn('btn btn-outline relative px-3', open && 'border-accent')} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="advanced-filters">
-            <SlidersHorizontal className="size-4" />
-            <span className="hidden sm:inline">Filters</span>
-            {activeAdvanced > 0 && <span className="num grid size-4 place-items-center rounded-full bg-primary text-[10px] text-on-primary">{activeAdvanced}</span>}
-          </button>
-        </div>
+        <button
+          className={cn('btn btn-outline relative shrink-0 px-3', open && 'border-primary text-primary')}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="advanced-filters"
+          aria-label="Sort and filter"
+        >
+          <SlidersHorizontal className="size-4" />
+          <span className="hidden sm:inline">Filters</span>
+          {activeAdvanced > 0 && <span className="num grid size-4 place-items-center rounded-full bg-primary text-[10px] text-on-primary">{activeAdvanced}</span>}
+        </button>
       </div>
 
       {open && (
-        <div id="advanced-filters" className="grid animate-slide-up grid-cols-1 gap-3 rounded-xl border border-line bg-bg-2/60 p-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div id="advanced-filters" className="grid animate-slide-up grid-cols-1 gap-3 rounded-2xl border border-line bg-bg-2/60 p-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <label className="label" htmlFor="sort-select">
+              Sort by
+            </label>
+            <div className="flex gap-2">
+              <select id="sort-select" value={filters.sort} onChange={(e) => onChange({ sort: e.target.value as TokenFilters['sort'] })} className="input min-w-0 flex-1">
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn btn-outline shrink-0 px-3"
+                onClick={() => onChange({ dir: filters.dir === 'asc' ? 'desc' : 'asc' })}
+                aria-label={filters.dir === 'asc' ? 'Sorted ascending, switch to descending' : 'Sorted descending, switch to ascending'}
+              >
+                {filters.dir === 'asc' ? <ArrowUpNarrowWide className="size-4" /> : <ArrowDownWideNarrow className="size-4" />}
+              </button>
+            </div>
+          </div>
           <div>
             <label className="label" htmlFor="signal-filter">Signal</label>
             <select id="signal-filter" className="input" value={filters.signal} onChange={(e) => onChange({ signal: e.target.value as TokenFilters['signal'] })}>
@@ -111,21 +121,23 @@ export function FilterBar({ filters, onChange, counts, resultCount }: FilterBarP
         </div>
       )}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {/* Tabs and the result count share one line — a whole row for a single number costs a row
+          of coins. The tabs scroll; the count stays put. */}
+      <div className="flex items-center gap-3">
         <Segmented
           label="Token category"
           options={TABS.map((t) => ({ ...t, count: counts?.[t.value] }))}
           value={filters.tab}
           onChange={(tab) => onChange({ tab })}
-          className="sm:max-w-xl"
+          className="min-w-0 flex-1 sm:max-w-2xl"
         />
-        <div className="flex items-center justify-between gap-3 text-xs text-muted sm:justify-end">
-          <span>
+        <div className="flex shrink-0 items-center gap-3 text-xs text-muted">
+          <span className="hidden min-[400px]:inline">
             <span className="num font-semibold text-fg">{resultCount}</span> tokens
           </span>
           {isDirty && (
-            <button onClick={() => onChange({ ...DEFAULT_FILTERS, tab: filters.tab })} className="inline-flex items-center gap-1 text-accent hover:underline">
-              <RotateCcw className="size-3" /> Reset filters
+            <button onClick={() => onChange({ ...DEFAULT_FILTERS, tab: filters.tab })} className="inline-flex items-center gap-1 text-accent hover:underline" aria-label="Reset filters">
+              <RotateCcw className="size-3" /> <span className="hidden sm:inline">Reset</span>
             </button>
           )}
         </div>
