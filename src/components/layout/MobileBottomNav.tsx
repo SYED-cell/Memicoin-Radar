@@ -43,16 +43,17 @@ export function MobileBottomNav() {
   const tab = (active: boolean) =>
     cn(
       'group relative grid size-12 touch-manipulation select-none place-items-center rounded-2xl outline-none transition-colors duration-200',
-      '[-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-primary/60',
-      active ? 'bg-primary text-on-primary' : 'text-muted hover:text-fg',
+      '[-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-white/50',
+      active ? 'text-white' : 'text-white/45 hover:text-white/80',
     );
 
   const renderTab = (item: NavItem) => (
     <NavLink key={item.to} to={item.to} className={({ isActive }) => tab(isActive)} aria-label={item.label} title={item.label}>
       {({ isActive }) => (
         <span className="relative grid place-items-center transition-transform duration-200 group-active:scale-90">
-          <item.icon className={cn('size-[22px]', isActive && 'fill-current/15')} aria-hidden />
+          <item.icon className={cn('size-[22px]', isActive && 'fill-current/20')} aria-hidden />
           {item.badge === 'alerts' && <UnreadBadge />}
+          {isActive && <span className="absolute -bottom-2 size-1 rounded-full bg-white" aria-hidden />}
         </span>
       )}
     </NavLink>
@@ -114,9 +115,24 @@ export function MobileBottomNav() {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(0.6rem+env(safe-area-inset-bottom))] [contain:layout_style] md:hidden"
         aria-label="Primary"
       >
-        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-line/70 bg-surface/95 p-1.5 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+        {/* An inked bar with one raised light action at its centre, as in the reference: the thing
+            you reach for most sits under your thumb and is the only lit surface on the bar. */}
+        <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-ink p-2 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.5)]">
           {MOBILE_LEFT.map(renderTab)}
-          {renderTab(MOBILE_CENTER)}
+
+          <NavLink
+            to={MOBILE_CENTER.to}
+            aria-label={MOBILE_CENTER.label}
+            title={MOBILE_CENTER.label}
+            className="group -my-3 grid size-14 touch-manipulation place-items-center rounded-full bg-white text-ink shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] outline-none transition [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            {({ isActive }) => (
+              <span className="grid place-items-center transition-transform duration-200 group-active:scale-90">
+                <MOBILE_CENTER.icon className={cn('size-6', isActive && 'fill-current/15')} aria-hidden />
+              </span>
+            )}
+          </NavLink>
+
           {MOBILE_RIGHT.map(renderTab)}
 
           <button

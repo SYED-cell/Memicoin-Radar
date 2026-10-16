@@ -33,7 +33,7 @@ export interface NavGroup {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Discover',
+    title: 'Overview',
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/tokens', label: 'Tokens', icon: Coins },
@@ -52,14 +52,14 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Trading',
+    title: 'Activity',
     items: [
       { to: '/trade', label: 'Paper Trading', icon: ArrowLeftRight },
       { to: '/portfolio', label: 'Portfolio', icon: PieChart },
     ],
   },
   {
-    title: 'Account',
+    title: 'Others',
     items: [
       { to: '/pro', label: 'Pro', icon: BadgeCheck },
       { to: '/settings/telegram', label: 'Telegram Alerts', icon: Send },

@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LogOut, Search, Settings, User as UserIcon, X } from 'lucide-react';
+import { Bell, ChevronDown, Home, LogOut, Search, Settings, User as UserIcon, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -66,6 +66,45 @@ function UserMenu() {
   );
 }
 
+/** Where you are, as a trail: a home icon, the section, then the page. Desktop only. */
+function Breadcrumb() {
+  const { pathname } = useLocation();
+  const crumbs = BREADCRUMBS[pathname] ?? inferCrumbs(pathname);
+  return (
+    <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-2 text-sm md:flex">
+      <Link to="/dashboard" className="grid size-9 shrink-0 place-items-center rounded-xl border border-line text-muted transition hover:text-fg" aria-label="Dashboard">
+        <Home className="size-4" aria-hidden />
+      </Link>
+      {crumbs.map((c, i) => (
+        <span key={c} className="flex min-w-0 items-center gap-2">
+          {i > 0 && <span className="text-subtle" aria-hidden>/</span>}
+          <span className={cn('truncate', i === crumbs.length - 1 ? 'font-semibold text-fg' : 'text-muted')}>{c}</span>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+const BREADCRUMBS: Record<string, string[]> = {
+  '/dashboard': ['Overview', 'Dashboard'],
+  '/tokens': ['Market', 'Live coins'],
+  '/charts': ['Market', 'Charts'],
+  '/alerts': ['Activity', 'Alerts'],
+  '/watchlist': ['Account', 'Watchlist'],
+  '/portfolio': ['Account', 'Portfolio'],
+  '/trade': ['Activity', 'Paper trading'],
+  '/settings': ['Account', 'Settings'],
+  '/pro': ['Account', 'Pro'],
+};
+
+function inferCrumbs(pathname: string): string[] {
+  const parts = pathname.split('/').filter(Boolean);
+  if (!parts.length) return ['Overview'];
+  const head = BREADCRUMBS[`/${parts[0]}`]?.[0] ?? 'Overview';
+  const tail = parts[parts.length - 1].replace(/-/g, ' ');
+  return [head, tail.charAt(0).toUpperCase() + tail.slice(1)];
+}
+
 export function Navbar() {
   const { unreadCount } = useMarket();
   const [mobileSearch, setMobileSearch] = useState(false);
@@ -79,8 +118,9 @@ export function Navbar() {
           <span className="min-[400px]:hidden"><Logo showText={false} /></span>
           <span className="hidden text-sm min-[400px]:block"><Logo /></span>
         </Link>
-        <GlobalSearch className="hidden max-w-md flex-1 md:block" />
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <Breadcrumb />
+        <GlobalSearch className="ml-auto hidden max-w-xs flex-1 md:block lg:max-w-sm" />
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 md:ml-0">
           <div className="hidden md:block">
             <ConnectionStatus />
           </div>

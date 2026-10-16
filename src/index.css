@@ -69,6 +69,51 @@
   }
 }
 
+/*
+  The phone runs a different skin from the desktop: paper-light, soft mint accents, one inked card
+  for the figures that matter. Every surface is a token, so the whole phone experience turns over
+  by redefining them here — components do not branch on it.
+*/
+@media (width < 768px) {
+  :root {
+    --color-bg: #ececec;
+    --color-bg-2: #e3e3e3;
+    --color-surface: #ffffff;
+    --color-surface-2: #f4f4f4;
+    --color-surface-3: #e7e7e7;
+    --color-line: #e0e0e0;
+    --color-line-strong: #c9c9c9;
+    --color-fg: #111113;
+    --color-muted: #7c7c82;
+    --color-subtle: #a0a0a6;
+
+    /* Mint is the accent, ink is the emphasis — the reference never shouts in colour. */
+    --color-primary: #0f9d63;
+    --color-primary-strong: #0a7f50;
+    --color-on-primary: #ffffff;
+    --color-mint: #cfe9e2;
+    --color-mint-deep: #a9d6cb;
+    --color-ink: #121214;
+    --color-butter: #f6c860;
+    --color-accent: #1f6fe0;
+    --color-danger: #e03a4e;
+    --color-warning: #b9821a;
+
+    --shadow-card: 0 1px 2px rgb(17 17 19 / 0.04), 0 8px 24px -16px rgb(17 17 19 / 0.25);
+    --shadow-raised: 0 2px 4px rgb(17 17 19 / 0.05), 0 14px 32px -18px rgb(17 17 19 / 0.3);
+    --shadow-float: 0 4px 8px rgb(17 17 19 / 0.06), 0 22px 44px -20px rgb(17 17 19 / 0.35);
+    --shadow-glow: 0 0 0 1px rgb(15 157 99 / 0.2), 0 8px 24px -10px rgb(15 157 99 / 0.3);
+  }
+}
+
+@theme {
+  /* Declared so the mint/ink/butter utilities exist; only the phone skin gives them values. */
+  --color-mint: #cfe9e2;
+  --color-mint-deep: #a9d6cb;
+  --color-ink: #121214;
+  --color-butter: #f6c860;
+}
+
 [data-theme='light'] {
   --color-bg: #eef2f8;
   --color-bg-2: #e6ecf5;
@@ -118,6 +163,14 @@
   [data-theme='light'] body {
     background-image: none;
   }
+  @media (width < 768px) {
+    :root {
+      color-scheme: light;
+    }
+    :root body {
+      background-image: none;
+    }
+  }
   button:not(:disabled),
   [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
@@ -153,6 +206,23 @@
     @apply rounded-3xl border border-line shadow-(--shadow-card) backdrop-blur-sm;
     /* Lit from above: the surface lifts off the page instead of sitting flat on it. */
     background-image: linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.008) 42%, transparent 70%), linear-gradient(0deg, var(--color-surface), var(--color-surface));
+  }
+  @media (width < 768px) {
+    /* On paper there is nothing above to light: a white sheen over white only looks grubby. */
+    :root .card {
+      background-image: none;
+      @apply bg-surface;
+    }
+  }
+  /* The one inked panel on a paper screen — where the reference puts the figures that matter. */
+  .card-ink {
+    @apply rounded-[28px] bg-ink text-white;
+    --color-fg: #ffffff;
+    --color-muted: #9b9ba3;
+    --color-subtle: #74747c;
+    --color-line: #2a2a2e;
+    --color-surface: #1c1c20;
+    --color-surface-2: #242429;
   }
   .card-hover {
     @apply transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:bg-surface-2/80 hover:shadow-(--shadow-raised);
