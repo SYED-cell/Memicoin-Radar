@@ -213,6 +213,11 @@
       background-image: none;
       @apply bg-surface;
     }
+    /* A field is where you write, so on paper it is the white one — grey on grey reads as
+       disabled, and the dark skin's convention inverts here. */
+    :root .input {
+      @apply border-line-strong/60 bg-surface;
+    }
   }
   /* The one inked panel on a paper screen — where the reference puts the figures that matter. */
   .card-ink {

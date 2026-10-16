@@ -1,5 +1,5 @@
-import { CheckCircle2, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { CheckCircle2, Eye, EyeOff, Gauge, Lock, Mail, Radio, ShieldCheck, User, type LucideIcon } from 'lucide-react';
+import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Spinner } from '../components/ui/LoadingState';
 import { Modal } from '../components/ui/Modal';
@@ -82,19 +82,99 @@ export function FieldWrap({ id, label, icon, error, children, right }: { id: str
   );
 }
 
-export function AuthShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+const PROOF: { icon: LucideIcon; title: string; body: string }[] = [
+  { icon: Radio, title: 'Every launch, as it happens', body: 'Streamed from pump.fun the second a coin is created — not scraped minutes later.' },
+  { icon: Gauge, title: 'Priced from the bonding curve', body: 'Market caps read straight off chain, so they match what pump.fun shows you.' },
+  { icon: ShieldCheck, title: 'Fourteen checks before any signal', body: 'Security, holders, creator history. If the evidence is thin, it says so instead of guessing.' },
+];
+
+/** Live count of tracked coins — real proof beats a marketing number, and it costs one public call. */
+function LiveProof() {
+  const [tokens, setTokens] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/health')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((h: { tokens?: number } | null) => {
+        if (!cancelled && typeof h?.tokens === 'number') setTokens(h.tokens);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (tokens === null) return null;
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md animate-slide-up">
-        <Link to="/" className="mb-8 flex justify-center" aria-label="MemeCoin Radar home">
+    <p className="flex items-center gap-2 text-sm text-muted">
+      <span className="size-1.5 animate-pulse-dot rounded-full bg-primary" aria-hidden />
+      <span className="num font-semibold text-fg">{tokens.toLocaleString()}</span> coins on the radar right now
+    </p>
+  );
+}
+
+/**
+ * The way in. A brand panel that states what the product does and proves it with a live number,
+ * beside the form itself — and on a phone, just the form, because a marketing column above a
+ * password field is something to scroll past.
+ */
+export function AuthShell({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
+      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-bg-2 p-12 lg:flex xl:p-16">
+        <div
+          className="pointer-events-none absolute -top-48 -left-24 size-[32rem] rounded-full opacity-70 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgb(34 224 122 / 0.22), transparent 70%)' }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-32 -bottom-40 size-[28rem] rounded-full opacity-60 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgb(47 140 255 / 0.18), transparent 70%)' }}
+          aria-hidden
+        />
+
+        <Link to="/" className="relative" aria-label="MemeCoin Radar home">
           <Logo />
         </Link>
-        <div className="card p-6 sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+
+        <div className="relative max-w-md">
+          <h2 className="text-4xl leading-[1.1] font-bold tracking-tight xl:text-5xl">
+            The whole Solana
+            <br />
+            launch feed,
+            <br />
+            <span className="text-primary">read properly.</span>
+          </h2>
+          <ul className="mt-10 space-y-6">
+            {PROOF.map((p) => (
+              <li key={p.title} className="flex gap-3.5">
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary ring-1 ring-primary/20">
+                  <p.icon className="size-[18px]" aria-hidden />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold">{p.title}</span>
+                  <span className="mt-0.5 block text-sm leading-relaxed text-muted">{p.body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="relative">
+          <LiveProof />
+          <p className="mt-2 text-xs text-subtle">Analysis is model output on live chain data — never financial advice.</p>
+        </div>
+      </aside>
+
+      <main className="flex items-center justify-center px-5 py-10 sm:px-8">
+        <div className="w-full max-w-sm animate-slide-up">
+          <Link to="/" className="mb-8 flex justify-center lg:hidden" aria-label="MemeCoin Radar home">
+            <Logo />
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -174,14 +254,39 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   };
 
   return (
-    <AuthShell title={mode === 'login' ? 'Welcome Back' : 'Create your account'} subtitle={mode === 'login' ? 'Sign in to your terminal' : 'Real-time Solana launch intelligence. Free to use.'}>
+    <AuthShell
+      title={mode === 'login' ? 'Welcome back' : 'Create your account'}
+      subtitle={mode === 'login' ? 'Sign in to your terminal.' : 'Free to use. No card, no trial clock.'}
+    >
+      {/* Both ways in, visible at once — guessing which link you need is a small tax on arriving. */}
+      <div className="mt-6 grid grid-cols-2 gap-1 rounded-2xl border border-line bg-bg-2/70 p-1" role="tablist" aria-label="Sign in or create an account">
+        {([
+          { to: '/login', label: 'Sign in', active: mode === 'login' },
+          { to: '/signup', label: 'Create account', active: mode === 'signup' },
+        ] as const).map((t) => (
+          <Link
+            key={t.to}
+            to={t.to}
+            state={location.state}
+            role="tab"
+            aria-selected={t.active}
+            className={cn(
+              'rounded-xl px-3 py-2 text-center text-sm font-semibold transition',
+              t.active ? 'bg-primary text-on-primary shadow-(--shadow-glow)' : 'text-muted hover:text-fg',
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
+
       {formError && (
-        <div role="alert" className="mt-5 rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+        <div role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
           {formError}
         </div>
       )}
 
-      <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
+      <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
         {mode === 'signup' && (
           <FieldWrap id="name" label="Full name" icon={<User className="size-4" />} error={show('name')}>
             <input id="name" autoComplete="name" className={inputCls('name')} value={String(values.name)} onChange={set('name')} onBlur={blur('name')} placeholder="Satoshi Nakamoto" {...aria('name')} />
@@ -247,28 +352,14 @@ export default function AuthPage({ mode }: { mode: Mode }) {
           </>
         )}
 
-        <button type="submit" className="btn btn-primary w-full py-3" disabled={pending}>
+        <button type="submit" className="btn btn-primary w-full rounded-2xl py-3.5 text-base" disabled={pending}>
           {pending && <Spinner />}
-          {mode === 'login' ? 'Sign In' : 'Create Account'}
+          {mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted">
-        {mode === 'login' ? (
-          <>
-            Don&apos;t have an account?{' '}
-            <Link to="/signup" state={location.state} className="font-semibold text-primary hover:underline">
-              Sign Up
-            </Link>
-          </>
-        ) : (
-          <>
-            Already have an account?{' '}
-            <Link to="/login" state={location.state} className="font-semibold text-primary hover:underline">
-              Sign In
-            </Link>
-          </>
-        )}
+      <p className="mt-6 text-center text-xs text-muted lg:hidden">
+        Analysis is model output on live chain data — never financial advice.
       </p>
 
       <Modal open={resetOpen} onClose={() => setResetOpen(false)} title="Reset password" description="We'll email you a one-time link valid for 1 hour." size="sm">
