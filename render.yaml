@@ -1,0 +1,37 @@
+# Deploy straight from GitHub: render.com → New → Blueprint → pick this repo.
+#
+# Free tier trade-offs, so they are not a surprise:
+#   • The service sleeps after ~15 minutes without traffic and takes ~30s to wake. While it sleeps
+#     no launches are detected and no Telegram alerts go out — it is a shareable link, not a
+#     24/7 radar.
+#   • There is no persistent disk, so the database starts empty after every deploy or restart:
+#     accounts, watchlists, paper trades and payment records do not survive. Upgrade the plan and
+#     attach a disk mounted at /data (then set DATABASE_PATH=/data/radar.db) to keep them.
+services:
+  - type: web
+    name: memecoin-radar
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Signup works without an email provider; set RESEND_API_KEY and flip this to require it.
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: 'false'
+      # Generated once by Render and kept secret. Changing them signs everyone out.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      # Writable path inside the container. Ephemeral on the free plan — see the note above.
+      - key: DATABASE_PATH
+        value: /app/data/radar.db
+      # Set these in the Render dashboard rather than here: they are secrets.
+      #   TELEGRAM_BOT_TOKEN   — buy signals to your chat
+      #   SOLANA_RPC_URL       — a dedicated RPC; without it holder data stays unavailable
+      #   USDT_TRC20_ADDRESS   — Pro payments, wallet you control
+      #   TRONGRID_API_KEY     — confirms those payments on-chain
