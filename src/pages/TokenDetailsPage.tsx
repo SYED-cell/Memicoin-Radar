@@ -98,6 +98,20 @@ export default function TokenDetailsPage() {
         </Section>
       )}
       {tab === 'ai' && <AIAnalysisCard token={token} />}
+
+      {/* Phone action bar: the two things you came to do, always in thumb reach, sitting above the
+          tab bar and clear of the home indicator. Desktop keeps the buttons in the header. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 px-3 md:hidden">
+        <div className="pointer-events-auto mx-auto flex max-w-md gap-2 rounded-2xl border border-line-strong bg-surface/95 p-2 shadow-(--shadow-float) backdrop-blur-xl">
+          <button onClick={() => setTrade('sell')} className="btn btn-outline flex-1">
+            Sell
+          </button>
+          <button onClick={() => setTrade('buy')} className="btn btn-primary flex-1">
+            Buy ${token.symbol.slice(0, 8)}
+          </button>
+        </div>
+      </div>
+
       <TradingModal open={trade !== null} onClose={() => setTrade(null)} tokenId={token.id} initialSide={trade ?? 'buy'} />
     </div>
   );
@@ -142,7 +156,7 @@ function Header({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) => v
       actions={
         <>
           <WatchButton token={token} variant="button" className="btn-sm" />
-          <button className="btn btn-primary btn-sm" onClick={() => onTrade('buy')} disabled={!token.price}>
+          <button className="btn btn-primary btn-sm hidden md:inline-flex" onClick={() => onTrade('buy')} disabled={!token.price}>
             <ShoppingCart className="size-3.5" /> Buy
           </button>
           {position && (
@@ -175,8 +189,19 @@ function Overview({ token, onTrade }: { token: Token; onTrade: (s: TradeSide) =>
           <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold tracking-wide text-muted uppercase">Market cap</p>
-              <p key={token.updatedAt} className="num animate-flash rounded text-3xl font-bold tracking-tight sm:text-4xl">
-                {token.marketCap ? formatCompactUsd(token.marketCap) : '—'}
+              {/* Figure and its move sit together, so the number is never read without its direction. */}
+              <p key={token.updatedAt} className="flex animate-flash items-center gap-2 rounded">
+                <span className="display text-3xl sm:text-4xl">{token.marketCap ? formatCompactUsd(token.marketCap) : '—'}</span>
+                {token.priceChange5m !== null && (
+                  <span
+                    className={cn(
+                      'num rounded-full px-2 py-0.5 text-xs font-bold',
+                      token.priceChange5m >= 0 ? 'bg-primary/15 text-primary' : 'bg-danger/15 text-danger',
+                    )}
+                  >
+                    {token.priceChange5m >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(token.priceChange5m), 1, false)}
+                  </span>
+                )}
               </p>
               {token.price > 0 && <p className="num mt-0.5 text-xs text-muted">{formatPrice(token.price)} per token</p>}
               <p className="mt-1 flex flex-wrap gap-x-3 text-sm">

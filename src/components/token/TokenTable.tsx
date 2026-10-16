@@ -5,8 +5,9 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { SortDir, SortKey } from '../../services/tokenFilters';
 import type { Token } from '../../types';
 import { cn } from '../../utils/cn';
+import { getSparkline } from '../../services/chartService';
 import { formatAge, formatCompact, formatCompactUsd, formatPrice } from '../../utils/format';
-import { ChangeText, NewBadge, SignalBadge, TokenAvatar } from '../ui/primitives';
+import { ChangeText, NewBadge, SignalBadge, TokenAvatar, Sparkline } from '../ui/primitives';
 import { RiskBadge } from '../ui/RiskBadge';
 import { ScoreBadge } from '../ui/ScoreBadge';
 import { VirtualList } from '../ui/VirtualList';
@@ -69,8 +70,10 @@ export function TokenTable({ tokens, sort, dir, onSort, height = '70dvh' }: Toke
                 <SignalBadge signal={t.signal} short /> {formatAge(t.createdAt)} · {t.liquidity ? `${formatCompactUsd(t.liquidity)} liq` : 'no liquidity'}
               </p>
             </div>
+            {/* The shape of the move reads faster than the number; it drops out on narrow phones. */}
+            <Sparkline data={getSparkline(t, 24)} className="hidden h-7 w-14 shrink-0 min-[380px]:block" positive={(t.priceChange5m ?? 0) >= 0} />
             <div className="shrink-0 text-right">
-              <p key={t.updatedAt} className="num animate-flash rounded px-1 text-sm">{t.marketCap ? formatCompactUsd(t.marketCap) : 'pricing…'}</p>
+              <p key={t.updatedAt} className="num animate-flash rounded px-1 text-sm font-semibold">{t.marketCap ? formatCompactUsd(t.marketCap) : 'pricing…'}</p>
               {t.priceChange5m !== null && <ChangeText value={t.priceChange5m} className="px-1 text-xs" />}
             </div>
           </Link>
