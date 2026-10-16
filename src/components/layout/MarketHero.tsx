@@ -1,7 +1,7 @@
 import { Bell, ChevronRight, Radar, Star, Zap, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMarket } from '../../context/MarketContext';
-import { formatCompactUsd, formatNumber, formatPercent, formatUsd } from '../../utils/format';
+import { formatCompactUsd, formatNumber, formatPercent } from '../../utils/format';
 import { PriceText } from '../ui/PriceText';
 
 /**
@@ -32,7 +32,9 @@ export function MarketHero() {
           24h market volume
         </p>
 
-        <PriceText value={formatUsd(stats.totalVolume, 2)} className="mt-1.5 block text-[40px] leading-none font-bold tracking-tight sm:text-5xl" />
+        {/* Compact, because the headline figure must never run off the card — and nobody reads
+            $89,201,473.96 as anything other than "about ninety million". */}
+        <PriceText value={formatCompactUsd(stats.totalVolume)} className="mt-1.5 block text-5xl leading-none font-bold tracking-tight sm:text-6xl" />
 
         <p className={`mt-2 inline-flex items-center gap-1 text-sm font-semibold ${up ? 'text-primary' : 'text-danger'}`}>
           {up ? '↗' : '↘'} {formatCompactUsd(Math.abs(delta))} ({formatPercent(deltaPct)})

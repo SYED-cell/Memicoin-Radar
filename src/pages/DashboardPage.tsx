@@ -10,6 +10,7 @@ import { StrictFilterCard } from '../components/token/StrictFilterCard';
 import { TokenCard } from '../components/token/TokenCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ChangeText, NewBadge, PageHeader, ProgressBar, Section, Segmented, SignalBadge, TokenAvatar } from '../components/ui/primitives';
+import { PriceText } from '../components/ui/PriceText';
 import { StatCard } from '../components/ui/StatCard';
 import { VirtualList } from '../components/ui/VirtualList';
 import { useAuth } from '../context/AuthContext';
@@ -123,14 +124,23 @@ export default function DashboardPage() {
                     <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                       ${t.symbol} <span className="truncate text-xs font-normal text-muted">{t.name}</span> <NewBadge detectedAt={t.detectedAt} />
                     </p>
-                    <p className="truncate text-[11px] text-muted">
-                      {formatAge(t.createdAt)} · {t.launchpad} · {t.marketCap ? `${formatCompactUsd(t.marketCap)} mcap` : 'awaiting market data'}
-                      {t.holders > 1 && ` · ${t.holders} holders`}
+                    <p className="flex items-center gap-1.5 truncate text-[11px] text-muted">
+                      <span className="truncate">
+                        {formatAge(t.createdAt)} · {t.launchpad}
+                        {t.holders > 1 && ` · ${t.holders} holders`}
+                      </span>
+                      {t.signal !== 'INSUFFICIENT DATA' && <SignalBadge signal={t.signal} short />}
                     </p>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <SignalBadge signal={t.signal} short />
-                    {t.priceChange5m !== null ? <ChangeText value={t.priceChange5m} className="text-[11px]" /> : <span className="text-[11px] text-subtle">—</span>}
+                  {/* The right edge is the figure column. A minute-old coin has no verdict yet, and
+                      stamping NO DATA there puts the loudest thing on the row where the price goes. */}
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    {t.marketCap ? (
+                      <PriceText key={t.updatedAt} value={formatCompactUsd(t.marketCap)} className="block animate-flash rounded text-sm font-semibold" />
+                    ) : (
+                      <span className="text-sm text-subtle">—</span>
+                    )}
+                    {t.priceChange5m !== null && <ChangeText value={t.priceChange5m} className="text-[11px]" />}
                   </div>
                 </Link>
               )}
