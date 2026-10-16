@@ -38,38 +38,22 @@ export function MobileBottomNav() {
     return () => document.removeEventListener('keydown', onKey);
   }, [moreOpen]);
 
-  // touch-manipulation removes the browser's tap delay; the transparent highlight keeps the
-  // press feedback ours. Sizes step up with the viewport so 320px phones stay uncramped.
+  // Icons only, like the reference: the label is the aria-label, so screen readers still get it.
+  // touch-manipulation removes the browser's tap delay; the highlight stays ours.
   const tab = (active: boolean) =>
     cn(
-      'group relative flex flex-1 touch-manipulation select-none flex-col items-center justify-end gap-1 px-0.5 pt-2.5 pb-3 text-[10px] font-medium outline-none',
-      'min-w-0 [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset focus-visible:rounded-2xl',
-      'min-[380px]:gap-1.5 min-[380px]:px-1 min-[380px]:text-[11px]',
-      active ? 'text-fg' : 'text-muted',
+      'group relative grid size-12 touch-manipulation select-none place-items-center rounded-2xl outline-none transition-colors duration-200',
+      '[-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-primary/60',
+      active ? 'bg-primary text-on-primary' : 'text-muted hover:text-fg',
     );
-
-  /** Rounded chip behind the icon; it carries the active state and the press feedback. */
-  const chip = (active: boolean) =>
-    cn(
-      'relative grid size-8 place-items-center rounded-xl transition-[background-color,transform,color] duration-200 group-active:scale-90 min-[380px]:size-9',
-      active ? 'bg-primary/15 text-primary' : 'text-muted group-hover:bg-surface-2',
-    );
-
-  const label = (active: boolean) => cn('max-w-full truncate leading-none transition-colors', active ? 'font-semibold text-fg' : 'text-muted');
-
-  const indicator = <span className="absolute bottom-0.5 h-0.5 w-8 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all" aria-hidden />;
 
   const renderTab = (item: NavItem) => (
-    <NavLink key={item.to} to={item.to} className={({ isActive }) => tab(isActive)}>
+    <NavLink key={item.to} to={item.to} className={({ isActive }) => tab(isActive)} aria-label={item.label} title={item.label}>
       {({ isActive }) => (
-        <>
-          <span className={chip(isActive)}>
-            <item.icon className="size-[18px] min-[380px]:size-5" aria-hidden />
-            {item.badge === 'alerts' && <UnreadBadge />}
-          </span>
-          <span className={label(isActive)}>{item.label}</span>
-          {isActive && indicator}
-        </>
+        <span className="relative grid place-items-center transition-transform duration-200 group-active:scale-90">
+          <item.icon className={cn('size-[22px]', isActive && 'fill-current/15')} aria-hidden />
+          {item.badge === 'alerts' && <UnreadBadge />}
+        </span>
       )}
     </NavLink>
   );
@@ -122,47 +106,30 @@ export function MobileBottomNav() {
       )}
 
       {/*
-        `contain: layout style` isolates the bar from the streaming feed's work without paint
-        containment, which would clip the raised button. The wrapper ignores pointer events so its
+        A floating pill, inset from the edges and sized to its icons. `contain: layout style`
+        isolates it from the streaming feed's work; the wrapper ignores pointer events so its
         padding never swallows taps meant for the page behind it.
       */}
       <nav
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))] [contain:layout_style] min-[380px]:px-3 md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(0.6rem+env(safe-area-inset-bottom))] [contain:layout_style] md:hidden"
         aria-label="Primary"
       >
-        <div className="pointer-events-auto mx-auto flex max-w-md items-end rounded-[24px] border border-line/70 bg-surface/95 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.9)] backdrop-blur-xl min-[380px]:rounded-[26px]">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-line/70 bg-surface/95 p-1.5 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           {MOBILE_LEFT.map(renderTab)}
-
-          {/* Raised primary action: the live launch feed. */}
-          <NavLink to={MOBILE_CENTER.to} className={({ isActive }) => tab(isActive)}>
-            {({ isActive }) => (
-              <>
-                <span
-                  className={cn(
-                    'absolute -top-4 grid size-12 place-items-center rounded-full bg-gradient-to-b from-primary to-primary-strong text-black ring-4 ring-bg',
-                    'transition-transform duration-200 group-active:scale-90 min-[380px]:-top-5 min-[380px]:size-14',
-                    isActive ? 'shadow-[0_0_26px_rgba(34,224,122,0.55)]' : 'shadow-[0_6px_18px_rgba(34,224,122,0.3)]',
-                  )}
-                  aria-hidden
-                >
-                  <MOBILE_CENTER.icon className="size-5 min-[380px]:size-6" />
-                </span>
-                {/* Reserves the icon row so this label lines up with the others. */}
-                <span className="size-8 min-[380px]:size-9" aria-hidden />
-                <span className={label(isActive)}>{MOBILE_CENTER.label}</span>
-                {isActive && indicator}
-              </>
-            )}
-          </NavLink>
-
+          {renderTab(MOBILE_CENTER)}
           {MOBILE_RIGHT.map(renderTab)}
 
-          <button onClick={() => setMoreOpen(true)} className={tab(moreActive || moreOpen)} aria-haspopup="dialog" aria-expanded={moreOpen}>
-            <span className={chip(moreActive || moreOpen)}>
-              <MoreHorizontal className="size-[18px] min-[380px]:size-5" aria-hidden />
+          <button
+            onClick={() => setMoreOpen(true)}
+            className={tab(moreActive || moreOpen)}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
+            aria-label="More sections"
+            title="More sections"
+          >
+            <span className="grid place-items-center transition-transform duration-200 group-active:scale-90">
+              <MoreHorizontal className="size-[22px]" aria-hidden />
             </span>
-            <span className={label(moreActive || moreOpen)}>More</span>
-            {moreActive && indicator}
           </button>
         </div>
       </nav>

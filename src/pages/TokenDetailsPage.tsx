@@ -101,7 +101,7 @@ export default function TokenDetailsPage() {
 
       {/* Phone action bar: the two things you came to do, always in thumb reach, sitting above the
           tab bar and clear of the home indicator. Desktop keeps the buttons in the header. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 px-3 md:hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.9rem+env(safe-area-inset-bottom))] z-30 px-3 md:hidden">
         <div className="pointer-events-auto mx-auto flex max-w-md gap-2 rounded-2xl border border-line-strong bg-surface/95 p-2 shadow-(--shadow-float) backdrop-blur-xl">
           <button onClick={() => setTrade('sell')} className="btn btn-outline flex-1">
             Sell
