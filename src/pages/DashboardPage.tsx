@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConnectionDot } from '../components/layout/ConnectionStatus';
 import { MarketHero } from '../components/layout/MarketHero';
+import { ProBanner } from '../components/token/ProBanner';
 import { AlertCard } from '../components/token/AlertCard';
 import { EntryLevelsCard } from '../components/token/EntryLevelsCard';
 import { StrictFilterCard } from '../components/token/StrictFilterCard';
@@ -52,6 +53,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <div className="hidden lg:block">
       <PageHeader
         title={`Hey ${user?.name.split(' ')[0] ?? 'trader'} 👋`}
         subtitle={
@@ -71,8 +73,11 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="lg:hidden">
+      </div>
+
+      <div className="space-y-4 lg:hidden">
         <MarketHero />
+        <ProBanner />
       </div>
 
       <div className="hidden grid-cols-2 gap-3 sm:gap-4 lg:grid lg:grid-cols-3 2xl:grid-cols-5">
