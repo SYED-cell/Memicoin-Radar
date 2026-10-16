@@ -1,5 +1,5 @@
 import { generateDailyReport } from '../shared/marketStats.ts';
-import type { DailyReport, UserSettings } from '../shared/types.ts';
+import type { DailyReport, Token, UserSettings } from '../shared/types.ts';
 import * as auth from './auth/auth.ts';
 import { all, one, run } from './db.ts';
 import { config } from './env.ts';
@@ -164,7 +164,10 @@ router.get('/api/tokens/:mint/security', requireAuth, intelLimit, async (ctx) =>
 router.get('/api/watchlist', requireAuth, (ctx) => ({ items: getWatchlist(ctx.userId!) }));
 router.post('/api/watchlist', requireAuth, async (ctx) => {
   const { mint } = validate(await ctx.body(), { mint: v.mint() });
-  if ((one<{ n: number }>('SELECT COUNT(*) AS n FROM watchlist WHERE user_id = ?', ctx.userId!)?.n ?? 0) >= 200) throw new HttpError(422, 'Watchlist limit reached (200)', 'limit');
+  const cap = billing.isPro(ctx.userId!) ? 200 : config.billing.freeWatchlist;
+  if ((one<{ n: number }>('SELECT COUNT(*) AS n FROM watchlist WHERE user_id = ?', ctx.userId!)?.n ?? 0) >= cap) {
+    throw new HttpError(422, `Watchlist is full (${cap} coins)${cap < 200 ? ' — Pro raises the limit to 200' : ''}`, 'limit');
+  }
   addWatch(ctx.userId!, mint);
   return { items: getWatchlist(ctx.userId!) };
 });
@@ -258,11 +261,61 @@ router.get('/api/billing/status', requireAuth, (ctx) => ({
   days: config.billing.days,
   networks: { trc20: Boolean(config.billing.trc20Address), erc20: Boolean(config.billing.erc20Address) },
   pending: billing.pendingIntent(ctx.userId!),
+  limits: { freeWatchlist: config.billing.freeWatchlist, proWatchlist: 200 },
 }));
 
 router.post('/api/billing/intent', requireAuth, async (ctx) => {
   const { network } = validate(await ctx.body(), { network: v.string({ pattern: /^(trc20|erc20)$/, message: 'network must be trc20 or erc20' }) });
   return { intent: billing.createIntent(ctx.userId!, network as billing.Network) };
+});
+
+/* ───────────────────────── Export (Pro) ───────────────────────── */
+
+const CSV_COLUMNS: { header: string; of: (t: Token) => string | number | null }[] = [
+  { header: 'symbol', of: (t) => t.symbol },
+  { header: 'name', of: (t) => t.name },
+  { header: 'mint', of: (t) => t.mint },
+  { header: 'launchpad', of: (t) => t.launchpad },
+  { header: 'created_at', of: (t) => new Date(t.createdAt).toISOString() },
+  { header: 'detected_at', of: (t) => new Date(t.detectedAt).toISOString() },
+  { header: 'market_cap_usd', of: (t) => Math.round(t.marketCap) },
+  { header: 'price_usd', of: (t) => t.price },
+  { header: 'liquidity_usd', of: (t) => Math.round(t.liquidity) },
+  { header: 'volume_5m_usd', of: (t) => Math.round(t.volume5m) },
+  { header: 'holders', of: (t) => t.holders },
+  { header: 'change_5m_pct', of: (t) => t.priceChange5m },
+  { header: 'change_1h_pct', of: (t) => t.priceChange1h },
+  { header: 'change_24h_pct', of: (t) => t.priceChange24h },
+  { header: 'opportunity', of: (t) => t.score },
+  { header: 'risk', of: (t) => t.riskScore },
+  { header: 'signal', of: (t) => t.signal },
+  { header: 'creator', of: (t) => t.creator ?? '' },
+];
+
+/** RFC 4180: quote everything, double the quotes inside. Leading =+-@ is prefixed so a cell
+ *  cannot become a formula when the file is opened in a spreadsheet. */
+function csvCell(value: string | number | null): string {
+  if (value === null || value === undefined) return '""';
+  const s = String(value);
+  return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+}
+
+router.get('/api/export/tokens.csv', requireAuth, (ctx) => {
+  if (!billing.isPro(ctx.userId!)) throw new HttpError(402, 'Exports are part of Pro', 'pro_required');
+  const rows = monitor.list();
+  const body =
+    CSV_COLUMNS.map((c) => c.header).join(',') +
+    '\n' +
+    rows.map((t) => CSV_COLUMNS.map((c) => csvCell(c.of(t))).join(',')).join('\n') +
+    '\n';
+  const name = `memecoin-radar-${new Date().toISOString().slice(0, 10)}.csv`;
+  ctx.res.writeHead(200, {
+    'content-type': 'text/csv; charset=utf-8',
+    'content-disposition': `attachment; filename="${name}"`,
+    'cache-control': 'no-store',
+  });
+  ctx.res.end(body);
+  return undefined; // response already written
 });
 
 router.get('/api/settings', requireAuth, (ctx) => ({ settings: getSettings(ctx.userId!) }));

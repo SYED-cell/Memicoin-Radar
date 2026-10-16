@@ -68,10 +68,17 @@ export const config = {
   billing: {
     trc20Address: env.USDT_TRC20_ADDRESS ?? '',
     erc20Address: env.USDT_ERC20_ADDRESS ?? '',
-    priceUsdt: Number(env.PRO_PRICE_USDT ?? 29),
+    priceUsdt: Number(env.PRO_PRICE_USDT ?? 30),
     days: Number(env.PRO_DAYS ?? 30),
     trongridKey: env.TRONGRID_API_KEY ?? '',
     etherscanKey: env.ETHERSCAN_API_KEY ?? '',
+    /** Accounts that are Pro without paying — the operator's own, and anything comped. */
+    proEmails: (env.PRO_EMAILS ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+    /** How many coins a free account may keep on its watchlist. */
+    freeWatchlist: Number(env.FREE_WATCHLIST ?? 15),
   },
   jupiterApi: (env.JUPITER_API ?? 'https://lite-api.jup.ag').replace(/\/$/, ''),
   ipfsGateway: env.IPFS_GATEWAY ?? 'https://4everland.io/ipfs/',

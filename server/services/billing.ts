@@ -59,7 +59,13 @@ export function proUntil(userId: string): number | null {
   return row?.pro_until ?? null;
 }
 
-export const isPro = (userId: string): boolean => (proUntil(userId) ?? 0) > Date.now();
+export function isPro(userId: string): boolean {
+  if ((proUntil(userId) ?? 0) > Date.now()) return true;
+  // Comped accounts: the operator should not have to pay their own wallet to see their own product.
+  if (!config.billing.proEmails.length) return false;
+  const email = one<{ email: string }>('SELECT email FROM users WHERE id = ?', userId)?.email;
+  return Boolean(email && config.billing.proEmails.includes(email.toLowerCase()));
+}
 
 const toIntent = (r: PaymentRow): PaymentIntent => ({
   id: r.id,

@@ -6,6 +6,7 @@ import { decrypt, encrypt, randomToken, sha256 } from '../lib/crypto.ts';
 import { HttpError } from '../lib/http.ts';
 import { log } from '../lib/log.ts';
 import { sendToUser } from './sse.ts';
+import { isPro } from './billing.ts';
 import { getSettings } from './userData.ts';
 
 /**
@@ -85,10 +86,13 @@ export function disconnect(userId: string) {
   run('DELETE FROM telegram_links WHERE user_id = ?', userId);
 }
 
-/** Queues a message for a user (no-op when not linked or notifications disabled). */
+/** Queues a message for a user (no-op when not linked, disabled, or not Pro). */
 export function enqueue(userId: string, text: string, force = false): boolean {
   if (!telegramConfigured()) return false;
   if (!force && !getSettings(userId).telegram.enabled) return false;
+  // Signals are the paid product. `force` covers the link confirmation and the test message, so
+  // a free account can still prove its connection works before paying for anything.
+  if (!force && !isPro(userId)) return false;
   if (!one('SELECT 1 FROM telegram_links WHERE user_id = ?', userId)) return false;
   const id = uid('tg_');
   const now = Date.now();
