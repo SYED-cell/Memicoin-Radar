@@ -4,13 +4,14 @@ import {
   Bell,
   Bot,
   CandlestickChart,
+  ChartLine,
   Coins,
   FileText,
   Gauge,
   HelpCircle,
+  House,
   LayoutDashboard,
   PieChart,
-  Radar,
   Send,
   Settings,
   ShieldAlert,
@@ -69,13 +70,17 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Phone tab bar: two tabs, the raised live-feed action, then one tab and the "More" sheet. */
+/**
+ * Phone tab bar, in the reference's vocabulary: a chart, a house, a grid. Home takes the raised
+ * centre because the button under your thumb should be the way back, not a destination you reach
+ * for once.
+ */
 export const MOBILE_LEFT: NavItem[] = [
-  { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { to: '/tokens', label: 'Coins', icon: ChartLine },
   { to: '/watchlist', label: 'Watchlist', icon: Star },
 ];
 
-export const MOBILE_CENTER: NavItem = { to: '/tokens', label: 'Radar', icon: Radar };
+export const MOBILE_CENTER: NavItem = { to: '/dashboard', label: 'Home', icon: House };
 
 export const MOBILE_RIGHT: NavItem[] = [{ to: '/alerts', label: 'Alerts', icon: Bell, badge: 'alerts' }];
 

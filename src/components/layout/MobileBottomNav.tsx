@@ -1,4 +1,4 @@
-import { LogOut, MoreHorizontal, X } from 'lucide-react';
+import { LayoutGrid, LogOut, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -144,7 +144,7 @@ export function MobileBottomNav() {
             title="More sections"
           >
             <span className="grid place-items-center transition-transform duration-200 group-active:scale-90">
-              <MoreHorizontal className="size-[22px]" aria-hidden />
+              <LayoutGrid className="size-[22px]" aria-hidden />
             </span>
           </button>
         </div>
