@@ -11,16 +11,18 @@
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
-  --color-bg: #050a16;
-  --color-bg-2: #07101f;
-  --color-surface: #0a1426;
-  --color-surface-2: #0e1b32;
-  --color-surface-3: #13233f;
-  --color-line: #1a2c4b;
-  --color-line-strong: #25406b;
-  --color-fg: #e8eef8;
-  --color-muted: #8a9ab5;
-  --color-subtle: #5d6d88;
+  /* Neutral near-black, not navy: a blue cast makes every surface read as a corporate dashboard,
+     where a charcoal base lets one accent colour carry the whole interface. */
+  --color-bg: #08090c;
+  --color-bg-2: #0d0f13;
+  --color-surface: #131519;
+  --color-surface-2: #1a1d23;
+  --color-surface-3: #23272f;
+  --color-line: #23262e;
+  --color-line-strong: #343945;
+  --color-fg: #f4f6f9;
+  --color-muted: #9aa3b2;
+  --color-subtle: #6b7484;
 
   --color-primary: #22e07a;
   --color-primary-strong: #16c766;
@@ -106,10 +108,10 @@
     /* Depth without noise: two light sources, plus a faint grid that reads as a terminal surface
        rather than a flat panel. The grid is below any content and never affects layout. */
     background-image:
-      radial-gradient(1200px 600px at 10% -10%, rgb(47 140 255 / 0.12), transparent 60%),
-      radial-gradient(900px 500px at 110% 10%, rgb(34 224 122 / 0.08), transparent 60%),
-      linear-gradient(rgb(255 255 255 / 0.014) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(255 255 255 / 0.014) 1px, transparent 1px);
+      radial-gradient(1100px 560px at 50% -15%, rgb(34 224 122 / 0.10), transparent 62%),
+      radial-gradient(900px 500px at 110% 8%, rgb(47 140 255 / 0.06), transparent 60%),
+      linear-gradient(rgb(255 255 255 / 0.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.012) 1px, transparent 1px);
     background-size: auto, auto, 56px 56px, 56px 56px;
     background-attachment: fixed;
   }
@@ -140,7 +142,9 @@
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-line bg-surface/80 shadow-(--shadow-card) backdrop-blur-sm;
+    @apply rounded-3xl border border-line shadow-(--shadow-card) backdrop-blur-sm;
+    /* Lit from above: the surface lifts off the page instead of sitting flat on it. */
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.008) 42%, transparent 70%), linear-gradient(0deg, var(--color-surface), var(--color-surface));
   }
   .card-hover {
     @apply transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:bg-surface-2/80 hover:shadow-(--shadow-raised);
@@ -155,10 +159,10 @@
     @apply relative pl-3 before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary before:content-[''];
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition duration-150 select-none active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition duration-150 select-none active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
   }
   .btn-sm {
-    @apply rounded-lg px-3 py-1.5 text-xs;
+    @apply rounded-xl px-3 py-1.5 text-xs;
   }
   .btn-primary {
     @apply bg-primary text-on-primary shadow-(--shadow-glow) hover:bg-primary-strong;

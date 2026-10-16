@@ -1,6 +1,5 @@
 import { ArrowRight, Radio } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ConnectionDot } from './ConnectionStatus';
 import { useMarket } from '../../context/MarketContext';
 import { formatCompactUsd, formatNumber } from '../../utils/format';
 
@@ -10,7 +9,8 @@ import { formatCompactUsd, formatNumber } from '../../utils/format';
  * top of the screen on mobile and settles into the grid on larger displays.
  */
 export function MarketHero() {
-  const { stats, lastUpdated } = useMarket();
+  const { stats, lastUpdated, health } = useMarket();
+  const live = health?.stream === 'open';
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-line-strong bg-surface/70 p-4 shadow-(--shadow-float) backdrop-blur sm:p-5">
@@ -21,9 +21,10 @@ export function MarketHero() {
         aria-hidden
       />
       <div className="relative">
-        {/* The dot carries its own status word, so the heading does not repeat it. */}
+        {/* Just the label here: the navbar already states the connection in words. */}
         <p className="flex items-center gap-2 text-[11px] font-semibold tracking-widest text-muted uppercase">
-          <ConnectionDot /> <span>market</span>
+          <span className={`size-2 rounded-full ${live ? 'animate-pulse-dot bg-primary' : 'bg-warning'}`} aria-hidden />
+          market
         </p>
         <p className="display mt-1.5 text-4xl sm:text-5xl">{formatCompactUsd(stats.totalVolume)}</p>
         <p className="mt-1 text-xs text-muted">

@@ -135,7 +135,7 @@ interface SegmentedProps<T extends string> {
 
 export function Segmented<T extends string>({ options, value, onChange, label, size = 'md', className }: SegmentedProps<T>) {
   return (
-    <div role="tablist" aria-label={label} className={cn('flex gap-1 overflow-x-auto rounded-xl border border-line bg-bg-2/70 p-1', className)}>
+    <div role="tablist" aria-label={label} className={cn('flex gap-1 overflow-x-auto rounded-2xl border border-line bg-bg-2/70 p-1', className)}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -145,9 +145,9 @@ export function Segmented<T extends string>({ options, value, onChange, label, s
             aria-selected={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-lg font-semibold whitespace-nowrap transition',
+              'flex flex-1 items-center justify-center gap-1.5 rounded-xl font-semibold whitespace-nowrap transition',
               size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-xs sm:text-sm',
-              active ? 'bg-accent text-white shadow' : 'text-muted hover:bg-surface-2 hover:text-fg',
+              active ? 'bg-primary text-on-primary shadow-(--shadow-glow)' : 'text-muted hover:bg-surface-2 hover:text-fg',
             )}
           >
             {o.label}
