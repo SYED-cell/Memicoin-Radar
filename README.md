@@ -30,7 +30,7 @@ process and no writable disk, so live detection, sessions and Telegram alerts wo
 `Dockerfile` builds the UI and ships a runtime image with no npm dependencies (the server uses only
 Node built-ins). `railway.json` sets the health check and restart policy.
 
-**Render (free, deploys from GitHub):** render.com → New → Blueprint → pick this repo.  sets it up. The free plan sleeps when idle and has no disk, so the database resets on each restart — fine for sharing a link, not for round-the-clock monitoring.
+**Render (free, deploys from GitHub):** render.com → New → Blueprint → pick this repo; `render.yaml` sets it up. The free plan sleeps when idle and has no disk, so the database resets on each restart — fine for sharing a link, not for round-the-clock monitoring.
 
 **Railway:** New Project → Deploy from GitHub repo → add a Volume mounted at `/data` → set the
 variables below → deploy → Settings → Networking → Generate Domain. Keep it at **one replica**: two
