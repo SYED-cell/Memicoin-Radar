@@ -19,7 +19,7 @@ file.
 
 ---
 
-## Option A — Render (no card, but it sleeps)
+## Option A — Render, kept awake (recommended; free, no card)
 
 `render.yaml` in this repo is a complete blueprint. The service is named **memicoinradar**, so the
 URL is `https://memicoinradar.onrender.com`.
@@ -28,16 +28,30 @@ URL is `https://memicoinradar.onrender.com`.
 2. [render.com](https://render.com) → **New** → **Blueprint** → connect GitHub → pick the repo.
 3. Render reads `render.yaml`, builds the Dockerfile and deploys. First build takes ~5 minutes.
 4. Add the secrets below under **Environment**, then **Manual Deploy → Clear build cache & deploy**.
+5. In **this GitHub repo** → Settings → Secrets and variables → Actions → **Variables** → add
+   `HEALTH_URL` = `https://memicoinradar.onrender.com/api/health`.
 
-**The catch:** free web services spin down after ~15 minutes without traffic and take 30–60s to
-wake. While it sleeps nothing is monitored and no Telegram alerts go out. There is also no
-persistent disk on free, so every deploy or restart empties the database — accounts, watchlists,
-paper trades and payment records all go.
+Step 5 is what makes the free plan usable. Render's free tier sleeps a service after 15 minutes
+without inbound traffic, and a sleeping radar detects no launches and sends no alerts. But the
+sleep is an **idle timeout, not a quota** — the plan includes 750 instance-hours a month against a
+~730-hour month, so a service that never goes idle still fits inside the allowance.
+`.github/workflows/keepalive.yml` pings the health endpoint every 10 minutes to hold it under that
+timeout. This repo is public, so those Actions minutes are free and unlimited.
 
-That makes free Render a **shareable demo**, not a radar. $7/month removes the sleep; a disk
-mounted at `/data` (then `DATABASE_PATH=/data/radar.db`) keeps the data.
+**The one real catch that remains:** free Render has no persistent disk, so the database is wiped
+on every deploy and on any platform restart — accounts, watchlists, paper trades and payment
+records all go. Tracked coins repopulate from the live feed within a minute; user data does not
+come back.
 
-## Option B — Northflank (always on, card verification at signup)
+That is survivable while you are the only user. Before anyone else signs up, take the $7/month
+plan and attach a disk mounted at `/data`, then set `DATABASE_PATH=/data/radar.db`. The paid plan
+also does not sleep, so the keep-alive becomes redundant (harmless to leave running).
+
+Two things to know about the cron: GitHub disables scheduled workflows on a repo with no commits
+for 60 days, and scheduled runs can be delayed by several minutes under load. Neither breaks
+anything — a late ping just means one cold start.
+
+## Option B — Northflank (always on by default, card verification at signup)
 
 Northflank's free Sandbox tier does not sleep, which is what this app actually wants. There is no
 blueprint file here because the setup is a short form:
