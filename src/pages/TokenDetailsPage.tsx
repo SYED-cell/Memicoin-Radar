@@ -60,7 +60,9 @@ export default function TokenDetailsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    // Extra room at the foot on phones: the action bar floats over the page, so without it the
+    // last section is permanently hidden under the Buy button.
+    <div className="space-y-4 pb-20 md:pb-0">
       <Header token={token} onTrade={setTrade} />
       <div className="sticky top-14 z-30 -mx-4 border-b border-line bg-bg/90 px-4 py-2 backdrop-blur md:top-16 md:-mx-6 md:px-6">
         <Segmented label="Token sections" size="sm" value={tab} onChange={(t) => setParams(t === 'overview' ? {} : { tab: t }, { replace: true })} options={TABS.map((t) => ({ value: t, label: TAB_LABEL[t] }))} />
@@ -101,7 +103,9 @@ export default function TokenDetailsPage() {
 
       {/* Phone action bar: the two things you came to do, always in thumb reach, sitting above the
           tab bar and clear of the home indicator. Desktop keeps the buttons in the header. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.9rem+env(safe-area-inset-bottom))] z-30 px-3 md:hidden">
+      {/* 6.25rem clears the tab bar: its pill is 4rem tall, sits 0.6rem off the bottom, and the
+          raised centre button overhangs it by another 0.75rem. Anything lower overlaps them. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 px-3 md:hidden">
         <div className="pointer-events-auto mx-auto flex max-w-md gap-2 rounded-2xl border border-line-strong bg-surface/95 p-2 shadow-(--shadow-float) backdrop-blur-xl">
           <button onClick={() => setTrade('sell')} className="btn btn-outline flex-1">
             Sell

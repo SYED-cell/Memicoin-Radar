@@ -35,10 +35,14 @@ export function AlertCard({ alert, token, now, onToggleRead, onDelete }: AlertCa
           </span>
           {alert.category === 'new_token' && <span className="chip border-primary/40 bg-primary/10 text-primary">NEW</span>}
         </div>
-        <p className={cn('mt-0.5 text-sm', alert.read ? 'text-muted' : 'text-fg')}>{alert.title}</p>
-        <p className="line-clamp-2 text-xs break-words text-muted">
-          {alert.message} · <time dateTime={new Date(alert.createdAt).toISOString()}>{timeAgo(alert.createdAt, now)}</time>
-        </p>
+        {/* "New token detected" on every launch alert is the same sentence a hundred times over,
+            and the NEW chip above already says it. For every other category the title carries
+            something — a threshold crossed, a sell, a drop — so it stays. */}
+        {alert.category !== 'new_token' && <p className={cn('mt-0.5 text-sm font-medium', alert.read ? 'text-muted' : 'text-fg')}>{alert.title}</p>}
+        <p className={cn('mt-0.5 line-clamp-2 text-sm break-words', alert.read || alert.category !== 'new_token' ? 'text-muted' : 'text-fg')}>{alert.message}</p>
+        <time dateTime={new Date(alert.createdAt).toISOString()} className="mt-0.5 block text-[11px] text-subtle">
+          {timeAgo(alert.createdAt, now)}
+        </time>
       </Link>
       <div className="flex shrink-0 items-center gap-0.5">
         <button onClick={onToggleRead} className="grid size-8 place-items-center rounded-lg text-subtle hover:bg-surface-3 hover:text-fg" aria-label={alert.read ? 'Mark as unread' : 'Mark as read'} title={alert.read ? 'Mark as unread' : 'Mark as read'}>

@@ -74,7 +74,7 @@ export function TokenTable({ tokens, sort, dir, onSort, height = '70dvh' }: Toke
                 {t.signal !== 'INSUFFICIENT DATA' && <SignalBadge signal={t.signal} short />}
               </p>
             </div>
-            <Sparkline data={getSparkline(t, 24)} className="hidden h-8 w-16 shrink-0 min-[380px]:block" positive={(t.priceChange5m ?? 0) >= 0} />
+            <Sparkline data={getSparkline(t, 24)} className="hidden h-8 w-14 shrink-0 min-[430px]:block" positive={(t.priceChange5m ?? 0) >= 0} />
             <div className="shrink-0 text-right">
               {t.marketCap ? (
                 <PriceText key={t.updatedAt} value={formatCompactUsd(t.marketCap)} className="block animate-flash rounded text-[15px] font-semibold" />
@@ -83,6 +83,8 @@ export function TokenTable({ tokens, sort, dir, onSort, height = '70dvh' }: Toke
               )}
               {t.priceChange5m !== null && <ChangeText value={t.priceChange5m} className="text-xs" />}
             </div>
+            {/* Saving a coin was desktop-only, which meant opening the page just to star it. */}
+            <WatchButton token={t} className="-mr-1 size-9" />
           </Link>
         )}
       />

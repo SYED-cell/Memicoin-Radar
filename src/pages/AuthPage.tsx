@@ -1,5 +1,5 @@
-import { CheckCircle2, Eye, EyeOff, Gauge, Lock, Mail, Radio, ShieldCheck, User, type LucideIcon } from 'lucide-react';
-import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { ArrowBigUp, Check, CheckCircle2, Circle, Eye, EyeOff, Gauge, Lock, Mail, Radio, ShieldCheck, User, type LucideIcon } from 'lucide-react';
+import { useEffect, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Spinner } from '../components/ui/LoadingState';
 import { Modal } from '../components/ui/Modal';
@@ -45,6 +45,13 @@ export function passwordStrength(p: string): { score: number; label: string } {
   return { score: s, label: ['Very weak', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'][s] };
 }
 
+/** The rules the server actually enforces, so the list cannot drift from the validator. */
+export const PASSWORD_RULES: { label: string; met: (p: string) => boolean }[] = [
+  { label: 'At least 8 characters', met: (p) => p.length >= 8 },
+  { label: 'A letter', met: (p) => /[a-zA-Z]/.test(p) },
+  { label: 'A number', met: (p) => /[0-9]/.test(p) },
+];
+
 export function StrengthMeter({ password }: { password: string }) {
   const strength = passwordStrength(password);
   if (!password) return null;
@@ -52,11 +59,42 @@ export function StrengthMeter({ password }: { password: string }) {
     <div aria-live="polite">
       <div className="flex gap-1">
         {Array.from({ length: 5 }, (_, i) => (
-          <span key={i} className={cn('h-1 flex-1 rounded-full', i < strength.score ? (strength.score >= 4 ? 'bg-primary' : strength.score >= 2 ? 'bg-warning' : 'bg-danger') : 'bg-surface-3')} />
+          <span key={i} className={cn('h-1 flex-1 rounded-full transition-colors', i < strength.score ? (strength.score >= 4 ? 'bg-primary' : strength.score >= 2 ? 'bg-warning' : 'bg-danger') : 'bg-surface-3')} />
         ))}
       </div>
-      <p className="mt-1 text-[11px] text-muted">Strength: {strength.label}</p>
+      <p className="mt-1.5 text-[11px] text-muted">Strength: {strength.label}</p>
+      {/* Requirements, ticked as they are met — being told what was wrong only after submitting
+          is the most avoidable friction on a sign-up form. */}
+      <ul className="mt-2 grid gap-1">
+        {PASSWORD_RULES.map((r) => {
+          const ok = r.met(password);
+          return (
+            <li key={r.label} className={cn('flex items-center gap-1.5 text-[11px] transition-colors', ok ? 'text-primary' : 'text-subtle')}>
+              {ok ? <Check className="size-3.5 shrink-0" aria-hidden /> : <Circle className="size-3.5 shrink-0" aria-hidden />}
+              <span>{r.label}</span>
+              <span className="sr-only">{ok ? ' — met' : ' — not met yet'}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
+  );
+}
+
+/** Caps Lock silently breaks far more sign-ins than a wrong password does. */
+export function useCapsLock() {
+  const [on, setOn] = useState(false);
+  // Only keyboard events carry modifier state, so the hint appears on the first keystroke.
+  const handler = (e: KeyboardEvent<HTMLInputElement>) => setOn(e.getModifierState('CapsLock'));
+  return { capsOn: on, capsProps: { onKeyUp: handler, onKeyDown: handler } };
+}
+
+export function CapsLockHint({ on }: { on: boolean }) {
+  if (!on) return null;
+  return (
+    <p role="status" className="mt-1.5 flex items-center gap-1.5 text-[11px] text-warning">
+      <ArrowBigUp className="size-3.5" aria-hidden /> Caps Lock is on
+    </p>
   );
 }
 
@@ -191,6 +229,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [serverFields, setServerFields] = useState<Partial<Record<Field, string>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const { capsOn, capsProps } = useCapsLock();
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
@@ -326,11 +365,13 @@ export default function AuthPage({ mode }: { mode: Mode }) {
             onChange={set('password')}
             onBlur={blur('password')}
             placeholder="••••••••"
+            {...capsProps}
             {...aria('password')}
           />
           <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1.5 text-subtle hover:text-fg" aria-label={showPw ? 'Hide password' : 'Show password'}>
             {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
+          <CapsLockHint on={capsOn} />
         </FieldWrap>
         {mode === 'signup' && (
           <>

@@ -1,4 +1,4 @@
-import { BellOff, CheckCheck, Search, Settings2, Trash2 } from 'lucide-react';
+import { BellOff, CheckCheck, Search, Settings2, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCard } from '../components/token/AlertCard';
@@ -9,6 +9,7 @@ import { useMarket } from '../context/MarketContext';
 import { useToast } from '../context/ToastContext';
 import { useNow } from '../hooks/useNow';
 import type { AlertCategory, AlertSeverity } from '../types';
+import { cn } from '../utils/cn';
 
 type SevFilter = 'all' | AlertSeverity;
 type ReadFilter = 'all' | 'unread' | 'read';
@@ -41,6 +42,8 @@ export default function AlertsPage() {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const extraFilters = (query ? 1 : 0) + (category !== 'all' ? 1 : 0) + (readFilter !== 'all' ? 1 : 0);
 
   const counts = useMemo(
     () => ({
@@ -97,37 +100,55 @@ export default function AlertsPage() {
         }
       />
 
-      <div className="card space-y-3 p-3 sm:p-4">
-        <Segmented
-          label="Severity"
-          value={sev}
-          onChange={(v) => {
-            setSev(v);
-            setLimit(PAGE);
-          }}
-          options={[
-            { value: 'all', label: 'All', count: counts.all },
-            { value: 'critical', label: 'Critical', count: counts.critical },
-            { value: 'warning', label: 'Warning', count: counts.warning },
-            { value: 'info', label: 'Info', count: counts.info },
-          ]}
-        />
-        <div className="grid gap-2 sm:grid-cols-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" aria-hidden />
-            <input type="search" className="input pl-9" placeholder="Filter by token or title" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Filter alerts" />
-          </div>
-          <select className="input" value={category} onChange={(e) => setCategory(e.target.value as AlertCategory | 'all')} aria-label="Alert category">
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-          <select className="input" value={readFilter} onChange={(e) => setReadFilter(e.target.value as ReadFilter)} aria-label="Read status">
-            <option value="all">Read & unread</option>
-            <option value="unread">Unread only</option>
-            <option value="read">Read only</option>
-          </select>
+      {/* Severity is the filter people actually use, so it stays. The other three are occasional
+          and were costing three rows of screen above the alerts themselves. */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Segmented
+            label="Severity"
+            className="min-w-0 flex-1 sm:max-w-lg"
+            value={sev}
+            onChange={(v) => {
+              setSev(v);
+              setLimit(PAGE);
+            }}
+            options={[
+              { value: 'all', label: 'All', count: counts.all },
+              { value: 'critical', label: 'Critical', count: counts.critical },
+              { value: 'warning', label: 'Warning', count: counts.warning },
+              { value: 'info', label: 'Info', count: counts.info },
+            ]}
+          />
+          <button
+            className={cn('btn btn-outline relative shrink-0 px-3', filtersOpen && 'border-primary text-primary')}
+            onClick={() => setFiltersOpen((o) => !o)}
+            aria-expanded={filtersOpen}
+            aria-controls="alert-filters"
+            aria-label="Search and filter alerts"
+          >
+            <SlidersHorizontal className="size-4" />
+            {extraFilters > 0 && <span className="num grid size-4 place-items-center rounded-full bg-primary text-[10px] text-on-primary">{extraFilters}</span>}
+          </button>
         </div>
+
+        {filtersOpen && (
+          <div id="alert-filters" className="grid animate-slide-up gap-2 rounded-2xl border border-line bg-bg-2/60 p-3 sm:grid-cols-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" aria-hidden />
+              <input type="search" className="input pl-9" placeholder="Filter by token or title" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Filter alerts" />
+            </div>
+            <select className="input" value={category} onChange={(e) => setCategory(e.target.value as AlertCategory | 'all')} aria-label="Alert category">
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+            <select className="input" value={readFilter} onChange={(e) => setReadFilter(e.target.value as ReadFilter)} aria-label="Read status">
+              <option value="all">Read &amp; unread</option>
+              <option value="unread">Unread only</option>
+              <option value="read">Read only</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {filtered.length === 0 ? (
