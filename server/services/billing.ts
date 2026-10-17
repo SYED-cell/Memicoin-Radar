@@ -59,12 +59,21 @@ export function proUntil(userId: string): number | null {
   return row?.pro_until ?? null;
 }
 
+/**
+ * Whether an address is on the comp list. Exact, case-insensitive matches only — a substring rule
+ * here would hand Pro to anyone who could register a lookalike address.
+ */
+export function isCompedEmail(email: string | undefined | null, list: string[]): boolean {
+  if (!email || !list.length) return false;
+  const needle = email.trim().toLowerCase();
+  return list.some((e) => e.trim().toLowerCase() === needle);
+}
+
 export function isPro(userId: string): boolean {
   if ((proUntil(userId) ?? 0) > Date.now()) return true;
   // Comped accounts: the operator should not have to pay their own wallet to see their own product.
-  if (!config.billing.proEmails.length) return false;
-  const email = one<{ email: string }>('SELECT email FROM users WHERE id = ?', userId)?.email;
-  return Boolean(email && config.billing.proEmails.includes(email.toLowerCase()));
+  const email = config.billing.proEmails.length ? one<{ email: string }>('SELECT email FROM users WHERE id = ?', userId)?.email : null;
+  return isCompedEmail(email, config.billing.proEmails);
 }
 
 const toIntent = (r: PaymentRow): PaymentIntent => ({

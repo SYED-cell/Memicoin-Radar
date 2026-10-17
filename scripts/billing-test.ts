@@ -2,7 +2,7 @@
  * Checks the rule that decides whether money arrived. Usage: node scripts/billing-test.ts
  * No network, no database — just the matching logic that grants a paid subscription.
  */
-import { matchTransfer, type Transfer } from '../server/services/billing.ts';
+import { isCompedEmail, matchTransfer, type Transfer } from '../server/services/billing.ts';
 
 let failures = 0;
 const check = (name: string, cond: boolean, extra?: unknown) => {
@@ -25,6 +25,20 @@ check('an older transfer cannot be reused', !matchTransfer(payment, [transfer({ 
 check('a transfer broadcast moments before the intent still counts', !!matchTransfer(payment, [transfer({ at: now - 2 * 60_000 })], ADDRESS));
 check('the right one is picked out of many', matchTransfer(payment, [transfer({ amount: '29.01', hash: '0x1' }), transfer({ hash: '0x2' })], ADDRESS)?.hash === '0x2');
 check('nothing arrived means nothing granted', !matchTransfer(payment, [], ADDRESS));
+
+
+// Comped accounts get the paid product without paying, so the match has to be exact.
+const COMPED = ['ceraunophile98@gmail.com', 'deadbody540105@gmail.com', 'syedmukamilshah578@gmail.com'];
+
+check('a listed address is Pro', isCompedEmail('ceraunophile98@gmail.com', COMPED));
+check('any address on the list counts, not just the first', isCompedEmail('syedmukamilshah578@gmail.com', COMPED));
+check('case is ignored', isCompedEmail('Ceraunophile98@Gmail.com', COMPED));
+check('surrounding whitespace is ignored', isCompedEmail('  deadbody540105@gmail.com ', COMPED));
+check('an unlisted address is not Pro', !isCompedEmail('someone@else.com', COMPED));
+check('a lookalike domain does not match', !isCompedEmail('ceraunophile98@gmail.com.evil.com', COMPED));
+check('a substring of a listed address does not match', !isCompedEmail('ceraunophile98', COMPED));
+check('an empty list comps nobody', !isCompedEmail('ceraunophile98@gmail.com', []));
+check('a missing address is not Pro', !isCompedEmail(undefined, COMPED));
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll billing checks passed');
 process.exit(failures ? 1 : 0);
