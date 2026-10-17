@@ -30,7 +30,16 @@ process and no writable disk, so live detection, sessions and Telegram alerts wo
 `Dockerfile` builds the UI and ships a runtime image with no npm dependencies (the server uses only
 Node built-ins). `railway.json` sets the health check and restart policy.
 
-**Render (free, deploys from GitHub):** render.com → New → Blueprint → pick this repo; `render.yaml` sets it up. The free plan sleeps when idle and has no disk, so the database resets on each restart — fine for sharing a link, not for round-the-clock monitoring.
+**Render (recommended, free):**
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/SYED-cell/Memicoin-Radar)
+
+The button reads `render.yaml` and creates the service as **memicoinradar**. Then add
+`HEALTH_URL = https://memicoinradar.onrender.com/api/health` under this repo's Actions *variables*
+— `.github/workflows/keepalive.yml` pings it every 10 minutes, which keeps the free plan from
+sleeping and inside its 750 instance-hours. The free plan still has no disk, so user accounts reset
+on each deploy; add the $7 plan and a disk at `/data` before anyone else signs up. Full notes and
+the other hosts are in [DEPLOY.md](DEPLOY.md).
 
 **Railway:** New Project → Deploy from GitHub repo → add a Volume mounted at `/data` → set the
 variables below → deploy → Settings → Networking → Generate Domain. Keep it at **one replica**: two
