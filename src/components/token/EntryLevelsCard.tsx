@@ -14,7 +14,7 @@ import { Section, SignalBadge, TokenAvatar } from '../ui/primitives';
  */
 export function EntryLevelsCard({ tokens, limit = 5 }: { tokens: Token[]; limit?: number }) {
   const { user } = useAuth();
-  const pro = (user?.proUntil ?? 0) > Date.now();
+  const pro = Boolean(user?.pro);
   const rows = useMemo(
     () =>
       tokens

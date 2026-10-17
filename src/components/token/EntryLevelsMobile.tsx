@@ -15,7 +15,7 @@ import { TokenAvatar } from '../ui/primitives';
  */
 export function EntryLevelsMobile({ tokens, limit = 3 }: { tokens: Token[]; limit?: number }) {
   const { user } = useAuth();
-  const pro = (user?.proUntil ?? 0) > Date.now();
+  const pro = Boolean(user?.pro);
 
   const rows = useMemo(
     () =>

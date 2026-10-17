@@ -485,6 +485,11 @@ export interface User {
   createdAt: number;
   /** Pro subscription expiry; absent or past means the free tier. */
   proUntil?: number | null;
+  /**
+   * Whether this account has Pro right now — the only thing the UI should gate on. A comped
+   * account has no expiry date, so `proUntil` alone would lock features the server is serving.
+   */
+  pro: boolean;
 }
 
 export interface WatchItem {

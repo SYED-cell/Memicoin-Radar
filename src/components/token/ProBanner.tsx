@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
  */
 export function ProBanner() {
   const { user } = useAuth();
-  if ((user?.proUntil ?? 0) > Date.now()) return null;
+  if (user?.pro) return null;
 
   return (
     <Link

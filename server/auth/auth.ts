@@ -5,6 +5,7 @@ import { config } from '../env.ts';
 import { DUMMY_HASH, hashPassword, randomToken, sha256, signJwt, verifyJwt, verifyPassword } from '../lib/crypto.ts';
 import { clearCookie, HttpError, setCookie, type Ctx } from '../lib/http.ts';
 import { sendMail } from '../lib/mailer.ts';
+import { isCompedEmail } from '../services/billing.ts';
 
 export const ACCESS_COOKIE = 'mcr_at';
 export const REFRESH_COOKIE = 'mcr_rt';
@@ -24,7 +25,17 @@ interface UserRow {
   created_at: number;
 }
 
-export const toUser = (r: UserRow): User => ({ id: r.id, email: r.email, name: r.name, emailVerified: Boolean(r.email_verified), createdAt: r.created_at, proUntil: r.pro_until ?? null });
+export const toUser = (r: UserRow): User => ({
+  id: r.id,
+  email: r.email,
+  name: r.name,
+  emailVerified: Boolean(r.email_verified),
+  createdAt: r.created_at,
+  proUntil: r.pro_until ?? null,
+  // Paid or comped — the client cannot work this out from the expiry date alone, and when it
+  // tried, comped accounts saw "Unlock with Pro" over features the server was already serving.
+  pro: (r.pro_until ?? 0) > Date.now() || isCompedEmail(r.email, config.billing.proEmails),
+});
 
 export function getUser(id: string): User | null {
   const r = one<UserRow>('SELECT * FROM users WHERE id = ?', id);
