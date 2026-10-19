@@ -4,7 +4,7 @@
 import { curveMarket, decodeCurve } from '../shared/bondingCurve.ts';
 import { buildLevelsPlan } from '../shared/levels.ts';
 import { toCandles } from '../shared/candles.ts';
-import { createToken, evaluate } from '../shared/tokenService.ts';
+import { cleanMeta, createToken, evaluate } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
 import { formatVerifiedTelegram, isTrackableSetup, STRICT, verifyToken, type OutcomeSample } from '../shared/verification.ts';
 
@@ -238,6 +238,20 @@ check('AVOID report keeps disclaimer and failed checks', msgAvoid.includes('STAT
   check('volume accumulates per candle', second.volume === 10, second.volume);
   check('zero and negative values are ignored', toCandles([pt(1_000, 0), pt(2_000, -5)], 10_000).length === 0);
 }
+
+
+// Coin metadata is attacker-controlled. A bidi override does not just look odd — it reverses the
+// text printed next to it, in the UI, in a Telegram alert and in an exported CSV.
+check('a bidi override is stripped from a name', cleanMeta('\u202Emarket cap', 40) === 'market cap');
+check('right-to-left overrides go too', cleanMeta('AB\u202DCD', 14) === 'ABCD');
+check('isolates are stripped', cleanMeta('\u2066evil\u2069', 14) === 'evil');
+check('zero-width characters are stripped', cleanMeta('PU\u200BMP', 14) === 'PUMP');
+check('control codes are stripped', cleanMeta('PU\u0007MP\u001B', 14) === 'PUMP');
+check('newlines cannot break a Telegram line', cleanMeta('PUMP\nSCAM', 14) === 'PUMP SCAM');
+check('ordinary names survive untouched', cleanMeta('Good Coin', 40) === 'Good Coin');
+check('non-latin names survive', cleanMeta('\u975E\u51E1\u4EBA\u751F', 40) === '\u975E\u51E1\u4EBA\u751F');
+check('length is still capped', cleanMeta('x'.repeat(50), 14).length === 14);
+check('nothing in gives empty out', cleanMeta(undefined, 14) === '');
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll verification checks passed');
 process.exit(failures ? 1 : 0);

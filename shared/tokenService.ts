@@ -17,6 +17,32 @@ const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6'
 
 const EMPTY_BREAKDOWN = { total: 0, factors: [], coverage: 0, floorReason: null };
 
+
+/**
+ * Coin names and symbols are attacker-controlled metadata, so they are cleaned once here rather
+ * than trusted everywhere they are shown.
+ *
+ * Unicode has characters that re-order the text *around* them — RLO, LRO and the isolate family.
+ * A coin called "‮market cap" does not just render oddly itself: it flips the label beside it,
+ * so a caption reads "pac tekram". The same trick reverses an address or a figure in a Telegram
+ * alert or a CSV. They carry no meaning in a ticker, so they are removed, along with the other
+ * invisible formatting characters and any control codes.
+ */
+export function cleanMeta(value: string | undefined | null, max: number): string {
+  return (
+    (value ?? '')
+      // Bidi overrides and isolates, zero-width joiners/spaces, BOM.
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+      // Whitespace collapses first: a newline is a word break, so folding it to a space keeps
+      // a two-word name readable instead of gluing it together when the control codes go.
+      .replace(/\s+/g, ' ')
+      // C0/C1 control codes, which terminals and logs interpret rather than print.
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .trim()
+      .slice(0, max)
+  );
+}
+
 export function createToken(e: LaunchEvent, source: DataSource, solPrice: number, now = Date.now()): Token {
   const h = hashString(e.mint);
   const mcapUsd = e.marketCapSol && solPrice ? e.marketCapSol * solPrice : 0;
@@ -24,8 +50,8 @@ export function createToken(e: LaunchEvent, source: DataSource, solPrice: number
     id: e.mint,
     mint: e.mint,
     address: e.mint,
-    symbol: (e.symbol || '???').slice(0, 14),
-    name: (e.name || 'Unknown').slice(0, 40),
+    symbol: cleanMeta(e.symbol, 14) || '???',
+    name: cleanMeta(e.name, 40) || 'Unknown',
     logo: LOGOS[h % LOGOS.length],
     image: ipfsUrl(e.image),
     color: COLORS[h % COLORS.length],
@@ -134,8 +160,8 @@ export function applyMarket(t: Token, m: TokenMarketData, now = Date.now(), init
 
   const next: Token = {
     ...t,
-    symbol: m.symbol?.slice(0, 14) || t.symbol,
-    name: m.name?.slice(0, 40) || t.name,
+    symbol: cleanMeta(m.symbol, 14) || t.symbol,
+    name: cleanMeta(m.name, 40) || t.name,
     image: ipfsUrl(m.icon) ?? t.image,
     launchpad: m.launchpad ?? t.launchpad,
     socials: { ...t.socials, ...Object.fromEntries(Object.entries(m.socials).filter(([, v]) => v)) },

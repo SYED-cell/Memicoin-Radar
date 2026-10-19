@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   BadgeCheck,
   Check,
   Copy,
@@ -14,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { QrCode } from '../components/ui/QrCode';
 import { Spinner } from '../components/ui/LoadingState';
 import { useToast } from '../context/ToastContext';
 import { get, post } from '../lib/api';
@@ -87,7 +89,6 @@ export default function ProPage() {
     );
   };
 
-  // The CSV comes back as a file, not JSON, so it is fetched directly and handed to the browser.
   const exportCsv = async () => {
     setExporting(true);
     try {
@@ -120,39 +121,39 @@ export default function ProPage() {
     { icon: ShieldAlert, title: 'Risk breakdown', body: 'Holder concentration, creator history and liquidity checks, scored and explained per coin.' },
   ];
 
+  // An open payment takes over the page: it is a step you are in the middle of, not a section.
+  if (pending) {
+    return <PaymentStep intent={pending} copied={copied} onCopy={copy} onCancel={() => void load()} />;
+  }
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* The offer, before anything else: what it is, what it costs, and the one button. */}
+    <div className="mx-auto max-w-5xl space-y-6">
       <section className="card relative overflow-hidden p-6 text-center sm:p-10">
         <div
           className="pointer-events-none absolute -top-40 left-1/2 size-96 -translate-x-1/2 rounded-full opacity-60 blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgb(34 224 122 / 0.25), transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, rgb(197 248 78 / 0.22), transparent 70%)' }}
           aria-hidden
         />
         <div className="relative">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-lime/30 bg-lime/10 px-3 py-1 text-xs font-semibold text-lime">
             <BadgeCheck className="size-3.5" aria-hidden /> MemeCoin Radar Pro
           </span>
           <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Know where you would get in</h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
-            The radar is free. Pro adds the levels, the signals and the exports — the parts you act on.
-          </p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted">The radar is free. Pro adds the levels, the signals and the exports — the parts you act on.</p>
 
           <p className="mt-6 flex items-baseline justify-center gap-2">
-            <span className="num text-5xl font-bold tracking-tight sm:text-6xl">{priceUsdt}</span>
+            <span className="num text-5xl font-bold tracking-tight text-lime sm:text-6xl">{priceUsdt}</span>
             <span className="text-lg font-semibold text-muted">USDT</span>
           </p>
-          <p className="mt-1 text-xs text-muted">
-            for {days} days · no card, no subscription, no auto-renewal
-          </p>
+          <p className="mt-1 text-xs text-muted">for {days} days · no card, no subscription, no auto-renewal</p>
 
           {pro ? (
             <p className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary">
               <BadgeCheck className="size-4" aria-hidden />
-              Pro is active until {status.proUntil ? formatDateTime(status.proUntil) : '—'}
+              Pro is active{status.proUntil ? ` until ${formatDateTime(status.proUntil)}` : ''}
             </p>
           ) : (
-            <a href="#pay" className="btn btn-primary mt-6">
+            <a href="#pay" className="btn mt-6 bg-lime text-on-lime hover:bg-lime-deep">
               Upgrade for {priceUsdt} USDT
             </a>
           )}
@@ -164,7 +165,7 @@ export default function ProPage() {
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {perks.map((p) => (
             <li key={p.title} className="card p-4">
-              <span className="grid size-10 place-items-center rounded-2xl bg-primary/12 text-primary">
+              <span className="grid size-10 place-items-center rounded-2xl bg-lime/12 text-lime">
                 <p.icon className="size-5" aria-hidden />
               </span>
               <p className="mt-3 font-semibold">{p.title}</p>
@@ -202,37 +203,11 @@ export default function ProPage() {
               <code className="num text-fg">USDT_ERC20_ADDRESS</code> and restart.
             </p>
           </>
-        ) : pending ? (
-          <>
-            <h2 className="text-lg font-bold tracking-tight">Send the payment</h2>
-            <p className="mt-2 text-sm text-muted">
-              Send <span className="num font-semibold text-fg">exactly {pending.amount} USDT</span> on{' '}
-              <span className="font-semibold text-fg">
-                {NETWORK[pending.network].label} ({NETWORK[pending.network].chain})
-              </span>
-              . The amount is unique to you — it is how your transfer is matched to your account. Pro activates on its own within a minute of the transfer
-              confirming.
-            </p>
-            <div className="mt-4 space-y-2">
-              <CopyRow label="Amount (exact)" value={`${pending.amount} USDT`} copied={copied === 'amount'} onCopy={() => copy(pending.amount, 'amount')} />
-              <CopyRow
-                label={`${NETWORK[pending.network].label} address`}
-                value={pending.address}
-                copied={copied === 'address'}
-                onCopy={() => copy(pending.address, 'address')}
-              />
-            </div>
-            <p className="mt-3 flex items-center gap-2 text-xs text-muted">
-              <Loader2 className="size-3.5 animate-spin" aria-hidden /> Waiting for the transfer · expires {formatDateTime(pending.expiresAt)}
-            </p>
-            <p className="mt-2 text-[11px] text-warning">
-              Send on the network shown above. USDT sent on a different chain cannot be recovered.
-            </p>
-          </>
         ) : (
           <>
-            <h2 className="text-lg font-bold tracking-tight">Pay {priceUsdt} USDT</h2>
-            <p className="mt-1 text-sm text-muted">Pick a network. You will get an exact amount and an address to send it to.</p>
+            <p className="text-xs tracking-wide text-muted uppercase">Step 1 of 2</p>
+            <h2 className="mt-1 text-lg font-bold tracking-tight">Choose a network</h2>
+            <p className="mt-1 text-sm text-muted">You will get an exact amount and an address to send it to.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {(['trc20', 'erc20'] as Network[]).map((n) => {
                 const available = status.networks[n];
@@ -243,14 +218,14 @@ export default function ProPage() {
                     disabled={!available || busy !== null}
                     className={cn(
                       'rounded-2xl border p-4 text-left transition',
-                      available ? 'border-line bg-bg-2/60 hover:border-primary/50 hover:bg-surface-2' : 'border-line opacity-40',
+                      available ? 'border-line bg-bg-2/60 hover:border-lime/50 hover:bg-surface-2' : 'border-line opacity-40',
                     )}
                   >
                     <span className="flex items-center gap-2 font-semibold">
-                      <Wallet className="size-4 text-primary" aria-hidden /> USDT · {NETWORK[n].label}
+                      <Wallet className="size-4 text-lime" aria-hidden /> USDT · {NETWORK[n].label}
                     </span>
                     <span className="mt-1 block text-xs text-muted">{available ? NETWORK[n].note : 'Not available on this server'}</span>
-                    {busy === n && <span className="mt-2 block text-xs text-primary">Creating your payment…</span>}
+                    {busy === n && <span className="mt-2 block text-xs text-lime">Creating your payment…</span>}
                   </button>
                 );
               })}
@@ -265,9 +240,93 @@ export default function ProPage() {
   );
 }
 
+/**
+ * Step 2: the receipt. White on a dark app, as the reference does for the one screen you keep —
+ * the amount, the address, and a code your wallet can scan instead of you retyping 34 characters.
+ */
+function PaymentStep({
+  intent,
+  copied,
+  onCopy,
+  onCancel,
+}: {
+  intent: Intent;
+  copied: string;
+  onCopy: (text: string, what: string) => void;
+  onCancel: () => void;
+}) {
+  const net = NETWORK[intent.network];
+  // Wallets understand the chain's URI scheme and prefill the address; plain text is the fallback.
+  const uri = intent.network === 'erc20' ? `ethereum:${intent.address}` : intent.address;
+
+  return (
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onCancel} className="grid size-9 shrink-0 place-items-center rounded-xl border border-line text-muted hover:text-fg" aria-label="Back">
+          <ArrowLeft className="size-4" />
+        </button>
+        <div>
+          <p className="text-xs tracking-wide text-muted uppercase">Step 2 of 2</p>
+          <h1 className="text-lg font-bold tracking-tight">Send the payment</h1>
+        </div>
+      </div>
+
+      <section className="card-paper p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] text-muted">Amount — send exactly</p>
+            <p className="num mt-0.5 text-3xl font-bold tracking-tight">{intent.amount}</p>
+            <p className="text-sm font-semibold text-muted">USDT</p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#f5f5f7] px-2.5 py-1 text-[11px] font-semibold">
+            <span className="size-1.5 rounded-full bg-warning" aria-hidden /> Open
+          </span>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4 text-sm">
+          <div>
+            <dt className="text-[11px] text-muted">Network</dt>
+            <dd className="font-semibold">
+              {net.label} · {net.chain}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] text-muted">Unlocks</dt>
+            <dd className="font-semibold">{intent.days} days of Pro</dd>
+          </div>
+        </dl>
+
+        <div className="mt-5 grid place-items-center rounded-2xl border border-line p-4">
+          <QrCode value={uri} size={200} />
+          <p className="mt-2 text-[11px] text-muted">Scan with your wallet</p>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <CopyRow label="Amount (exact)" value={`${intent.amount} USDT`} copied={copied === 'amount'} onCopy={() => onCopy(intent.amount, 'amount')} />
+          <CopyRow label={`${net.label} address`} value={intent.address} copied={copied === 'address'} onCopy={() => onCopy(intent.address, 'address')} />
+        </div>
+
+        <p className="mt-4 flex items-center gap-2 text-xs text-muted">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden /> Waiting for the transfer · expires {formatDateTime(intent.expiresAt)}
+        </p>
+      </section>
+
+      <div className="card space-y-2 p-4 text-xs text-muted">
+        <p>
+          <span className="font-semibold text-fg">The amount is unique to you.</span> It is how your transfer is matched to your account, so send it to the
+          cent. Pro activates on its own within a minute of the transfer confirming — you can leave this page.
+        </p>
+        <p className="text-warning">
+          Send on {net.label} ({net.chain}) only. USDT sent on a different chain cannot be recovered.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function CopyRow({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl border border-line bg-bg-2/60 p-3">
+    <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 p-3">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] text-muted">{label}</p>
         <p className="num truncate text-sm font-semibold">{value}</p>

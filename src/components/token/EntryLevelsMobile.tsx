@@ -31,7 +31,7 @@ export function EntryLevelsMobile({ tokens, limit = 3 }: { tokens: Token[]; limi
   return (
     <section className="card p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-ink">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/12 px-3 py-1.5 text-xs font-semibold text-primary">
           <Crosshair className="size-3.5" aria-hidden /> Entry levels
         </span>
         <span className="text-[11px] text-muted">From price action</span>
@@ -57,7 +57,7 @@ export function EntryLevelsMobile({ tokens, limit = 3 }: { tokens: Token[]; limi
                 <div className="flex items-center gap-2.5">
                   <TokenAvatar token={token} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">${token.symbol}</span>
-                  <span className="num shrink-0 rounded-full bg-mint px-2 py-0.5 text-[11px] font-semibold text-ink">R/R {plan.rr.toFixed(1)}</span>
+                  <span className="num shrink-0 rounded-full border border-line bg-bg-2 px-2 py-0.5 text-[11px] font-semibold">R/R {plan.rr.toFixed(1)}</span>
                   <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />
                 </div>
                 <div className="mt-2.5 grid grid-cols-2 gap-1.5">
