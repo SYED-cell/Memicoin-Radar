@@ -2,7 +2,7 @@
  * Checks the rule that decides whether money arrived. Usage: node scripts/billing-test.ts
  * No network, no database — just the matching logic that grants a paid subscription.
  */
-import { isCompedEmail, matchTransfer, type Transfer } from '../server/services/billing.ts';
+import { groupByAddress, isCompedEmail, matchTransfer, type Transfer } from '../server/services/billing.ts';
 
 let failures = 0;
 const check = (name: string, cond: boolean, extra?: unknown) => {
@@ -39,6 +39,18 @@ check('a lookalike domain does not match', !isCompedEmail('ceraunophile98@gmail.
 check('a substring of a listed address does not match', !isCompedEmail('ceraunophile98', COMPED));
 check('an empty list comps nobody', !isCompedEmail('ceraunophile98@gmail.com', []));
 check('a missing address is not Pro', !isCompedEmail(undefined, COMPED));
+
+
+// Rotating the receiving wallet must not strand a payment already in flight.
+const OLD = 'TOldWalletBeforeRotation1111111111';
+const NEW = 'TNewWalletAfterRotation22222222222';
+const grouped = groupByAddress([{ address: OLD }, { address: NEW }, { address: OLD }], NEW);
+
+check('payments are grouped by the address they were quoted', grouped.size === 2);
+check('the old wallet is still watched', grouped.get(OLD)?.length === 2);
+check('the new wallet is watched too', grouped.get(NEW)?.length === 1);
+check('a payment with no stored address falls back to the configured one', groupByAddress([{ address: '' }], NEW).get(NEW)?.length === 1);
+check('with no address at all nothing is watched', groupByAddress([{ address: '' }], '').size === 0);
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll billing checks passed');
 process.exit(failures ? 1 : 0);

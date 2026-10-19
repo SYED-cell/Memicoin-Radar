@@ -194,17 +194,37 @@ function grantPro(row: PaymentRow, hash: string) {
   sendToUser(row.user_id, 'pro', { proUntil: until, paymentId: row.id });
 }
 
+/**
+ * Open payments grouped by the address each one was issued for.
+ *
+ * A payment stores the address the payer was shown. Watching only the currently configured wallet
+ * would strand every payment already in flight the moment that wallet is changed: the payer sends
+ * to the address on their screen, the server watches a different one, and the transfer is never
+ * matched — money gone with nothing granted. So we watch the addresses we actually quoted.
+ */
+export function groupByAddress(pending: { address: string }[], fallback: string): Map<string, { address: string }[]> {
+  const byAddress = new Map<string, { address: string }[]>();
+  for (const row of pending) {
+    const addr = row.address || fallback;
+    if (!addr) continue;
+    const list = byAddress.get(addr);
+    if (list) list.push(row);
+    else byAddress.set(addr, [row]);
+  }
+  return byAddress;
+}
+
 /** Matches confirmed transfers against open payments; the chain decides, nothing else. */
 async function checkNetwork(network: Network) {
-  const address = addressFor(network);
-  if (!address) return;
   const pending = all<PaymentRow>("SELECT * FROM payments WHERE status = 'pending' AND network = ? AND expires_at > ?", network, Date.now());
   if (!pending.length) return;
-  const transfers = network === 'trc20' ? await tronTransfers(address) : await ethTransfers(address);
-  if (!transfers.length) return;
-  for (const row of pending) {
-    const hit = matchTransfer(row, transfers, address);
-    if (hit) grantPro(row, hit.hash);
+  for (const [address, rows] of groupByAddress(pending, addressFor(network)) as Map<string, PaymentRow[]>) {
+    const transfers = network === 'trc20' ? await tronTransfers(address) : await ethTransfers(address);
+    if (!transfers.length) continue;
+    for (const row of rows) {
+      const hit = matchTransfer(row, transfers, address);
+      if (hit) grantPro(row, hit.hash);
+    }
   }
 }
 

@@ -5,6 +5,8 @@ import {
   Copy,
   Crosshair,
   Download,
+  Eye,
+  EyeOff,
   Loader2,
   Lock,
   Send,
@@ -21,6 +23,9 @@ import { useToast } from '../context/ToastContext';
 import { get, post } from '../lib/api';
 import { cn } from '../utils/cn';
 import { formatDateTime } from '../utils/format';
+
+/** How long the QR stays on screen before it hides itself. */
+const QR_REVEAL_SECONDS = 60;
 
 type Network = 'trc20' | 'erc20';
 
@@ -259,6 +264,19 @@ function PaymentStep({
   // Wallets understand the chain's URI scheme and prefill the address; plain text is the fallback.
   const uri = intent.network === 'erc20' ? `ethereum:${intent.address}` : intent.address;
 
+  // The code is on screen for a minute at a time, then hides until asked for again. This is about
+  // the screen, not the payment: the intent stays valid for its full hour, so a scan that is
+  // already in a wallet still goes through and the address below never disappears.
+  const [secondsLeft, setSecondsLeft] = useState(QR_REVEAL_SECONDS);
+  const shown = secondsLeft > 0;
+  useEffect(() => {
+    if (!shown) return;
+    // One interval per reveal, not one per tick: the functional update keeps counting down
+    // without the effect re-subscribing every second.
+    const id = window.setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [shown]);
+
   return (
     <div className="mx-auto max-w-md space-y-4">
       <div className="flex items-center gap-3">
@@ -296,9 +314,28 @@ function PaymentStep({
           </div>
         </dl>
 
-        <div className="mt-5 grid place-items-center rounded-2xl border border-line p-4">
-          <QrCode value={uri} size={200} />
-          <p className="mt-2 text-[11px] text-muted">Scan with your wallet</p>
+        <div className="mt-5 grid min-h-[16rem] place-items-center rounded-2xl border border-line p-4">
+          {shown ? (
+            <>
+              <QrCode value={uri} size={200} />
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted" aria-live="off">
+                Scan with your wallet · hides in <span className="num font-semibold text-fg">{secondsLeft}s</span>
+              </p>
+            </>
+          ) : (
+            <div className="text-center">
+              <span className="mx-auto grid size-12 place-items-center rounded-full bg-surface-2 text-muted">
+                <EyeOff className="size-5" aria-hidden />
+              </span>
+              <p className="mt-3 text-sm font-semibold">Code hidden</p>
+              <p className="mx-auto mt-1 max-w-[16rem] text-[11px] text-muted">
+                Your payment is still open — the address below works, and a scan already in your wallet still goes through.
+              </p>
+              <button onClick={() => setSecondsLeft(QR_REVEAL_SECONDS)} className="btn btn-outline btn-sm mt-3">
+                <Eye className="size-4" aria-hidden /> Show code again
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 space-y-2">
