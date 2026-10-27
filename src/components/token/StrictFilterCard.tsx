@@ -69,6 +69,14 @@ export function StrictFilterCard() {
               ? `Probabilities and targets are estimated from recorded outcomes${evidence.lastResolvedAt ? ` (last resolved ${timeAgo(evidence.lastResolvedAt)})` : ''}.`
               : `Needs ≥ ${evidence.required} comparable outcomes before any token can pass. Each qualifying setup is measured ${evidence.horizonMin} min after it first passes the core checks.`}
           </p>
+          {/* A high discard share means setups are not being watched for their full horizon, which
+              silently starves everything above. Shown so it cannot go unnoticed again. */}
+          {evidence.untracked > 0 && (
+            <p className={`mt-1 ${evidence.untracked > evidence.resolved ? 'text-warning' : ''}`}>
+              {evidence.untracked} of {evidence.samples} recorded setups could not be measured
+              {evidence.untracked > evidence.resolved ? ' — the price path is not being recorded for long enough.' : '.'}
+            </p>
+          )}
         </div>
       )}
 

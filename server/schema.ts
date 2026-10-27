@@ -190,4 +190,11 @@ export const MIGRATIONS: string[] = [
    );
    CREATE INDEX idx_payments_pending ON payments(status, network, expires_at);
    CREATE UNIQUE INDEX idx_payments_amount ON payments(network, amount, status);`,
+  // v5: a sample accumulates its own price path while it is live. Reconstructing the path at
+  // resolve time from the monitor's in-memory history discarded 88% of samples: the monitor stops
+  // polling and then evicts a quiet token long before the horizon elapses, so by the time the
+  // sample was due there was nothing left to measure it against.
+  `ALTER TABLE setup_samples ADD COLUMN points INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE setup_samples ADD COLUMN last_price REAL;
+   ALTER TABLE setup_samples ADD COLUMN last_at INTEGER;`,
 ];

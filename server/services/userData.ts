@@ -1,5 +1,6 @@
 import { DEFAULT_THRESHOLDS } from '../../shared/alertRules.ts';
 import type { UserSettings, WatchItem } from '../../shared/types.ts';
+import { STRICT } from '../../shared/verification.ts';
 import { all, one, run } from '../db.ts';
 import { monitor } from '../pipeline/monitor.ts';
 
@@ -88,9 +89,20 @@ export function heldSet(userId: string): Set<string> {
   return new Set(all<{ mint: string }>('SELECT mint FROM positions WHERE user_id = ?', userId).map((r) => r.mint));
 }
 
-/** Every mint any user watches or holds is "pinned": always polled, scanned and never evicted. */
+/**
+ * Every mint any user watches or holds is "pinned": always polled, scanned and never evicted.
+ * A mint with a sample still being measured is pinned for the same reason — the outcome tracker
+ * needs it polled for the whole horizon, and `pinned` is what exempts a token from `isActive`,
+ * from eviction and from the persist cutoff. The window bound releases the pin by itself, so a
+ * sample left behind by a restart cannot hold a token forever.
+ */
 export function refreshPinned() {
-  const rows = all<{ mint: string }>('SELECT mint FROM watchlist UNION SELECT mint FROM positions');
+  const rows = all<{ mint: string }>(
+    `SELECT mint FROM watchlist
+     UNION SELECT mint FROM positions
+     UNION SELECT mint FROM setup_samples WHERE status = 'pending' AND taken_at > ?`,
+    Date.now() - (STRICT.outcomeHorizonMin + 10) * 60_000,
+  );
   monitor.setPinned(new Set(rows.map((r) => r.mint)));
 }
 

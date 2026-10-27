@@ -670,6 +670,8 @@ export interface EvidenceStats {
   samples: number;
   resolved: number;
   pending: number;
+  /** Samples that could not be measured — a high share means the price path is not being recorded. */
+  untracked: number;
   required: number;
   horizonMin: number;
   firstAt: number | null;

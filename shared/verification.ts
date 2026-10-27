@@ -39,6 +39,49 @@ export const STRICT = {
   bearThresholdPct: -25,
 } as const;
 
+/** Readings inside the window before an outcome is worth counting. */
+export const MIN_PATH_POINTS = 3;
+/** Share of the horizon the readings must span, or the sample measured something else. */
+export const MIN_HORIZON_COVERAGE = 0.8;
+
+/** The price path a sample accumulated while it was live. */
+export interface SamplePath {
+  takenAt: number;
+  entryPrice: number;
+  points: number;
+  lastPrice: number | null;
+  lastAt: number | null;
+  maxUpPct: number;
+  maxDrawdownPct: number;
+}
+
+export type ResolvedOutcome =
+  | { status: 'resolved'; exitPrice: number; returnPct: number; maxUpPct: number; maxDrawdownPct: number }
+  | { status: 'untracked'; reason: string };
+
+/**
+ * Decides what a sample actually measured. An outcome counts only when the readings are enough to
+ * describe a path AND span most of the horizon: a setup that stopped being polled after five
+ * minutes says nothing about a 60-minute hold, so it is recorded as untracked rather than scored
+ * as though it had been watched the whole time.
+ */
+export function resolveOutcome(s: SamplePath): ResolvedOutcome {
+  const horizonMs = STRICT.outcomeHorizonMin * 60_000;
+  const covered = s.lastAt ? s.lastAt - s.takenAt : 0;
+  if (s.points < MIN_PATH_POINTS) return { status: 'untracked', reason: `only ${s.points} reading(s)` };
+  if (!s.lastPrice || !(s.lastPrice > 0) || !(s.entryPrice > 0)) return { status: 'untracked', reason: 'no exit price' };
+  if (covered < horizonMs * MIN_HORIZON_COVERAGE) {
+    return { status: 'untracked', reason: `readings span ${Math.round(covered / 60_000)} of ${STRICT.outcomeHorizonMin} min` };
+  }
+  return {
+    status: 'resolved',
+    exitPrice: s.lastPrice,
+    returnPct: (s.lastPrice / s.entryPrice - 1) * 100,
+    maxUpPct: s.maxUpPct,
+    maxDrawdownPct: s.maxDrawdownPct,
+  };
+}
+
 export const VERIFY_DISCLAIMER =
   'Model-generated analysis of verified on-chain and market data. Probabilities and targets are statistical estimates from past comparable setups — not predictions, not guarantees and not financial advice. Meme coins can lose all value quickly.';
 

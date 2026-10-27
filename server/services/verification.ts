@@ -1,6 +1,6 @@
 import { uid } from '../../shared/random.ts';
 import type { Alert, EvidenceStats, Token, VerificationResult } from '../../shared/types.ts';
-import { formatVerifiedTelegram, isTrackableSetup, STRICT, summarizeVerification, verifyToken, type OutcomeSample } from '../../shared/verification.ts';
+import { formatVerifiedTelegram, isTrackableSetup, resolveOutcome, STRICT, summarizeVerification, verifyToken, type OutcomeSample } from '../../shared/verification.ts';
 import { all, one, run } from '../db.ts';
 import { config } from '../env.ts';
 import { log } from '../lib/log.ts';
@@ -8,7 +8,7 @@ import { monitor } from '../pipeline/monitor.ts';
 import { allUserIdsCached, deliver } from './alerts.ts';
 import { isPro } from './billing.ts';
 import { enqueue } from './telegram.ts';
-import { getSettings } from './userData.ts';
+import { getSettings, refreshPinned } from './userData.ts';
 
 /**
  * Strict verified-coin filter (server side):
@@ -40,13 +40,14 @@ export function verify(t: Token): VerificationResult {
 }
 
 export function evidenceStats(): EvidenceStats {
-  const counts = one<{ total: number; resolved: number; pending: number; first: number | null; last: number | null }>(
-    "SELECT COUNT(*) AS total, SUM(status = 'resolved') AS resolved, SUM(status = 'pending') AS pending, MIN(taken_at) AS first, MAX(CASE WHEN status = 'resolved' THEN resolved_at END) AS last FROM setup_samples",
+  const counts = one<{ total: number; resolved: number; pending: number; untracked: number; first: number | null; last: number | null }>(
+    "SELECT COUNT(*) AS total, SUM(status = 'resolved') AS resolved, SUM(status = 'pending') AS pending, SUM(status = 'untracked') AS untracked, MIN(taken_at) AS first, MAX(CASE WHEN status = 'resolved' THEN resolved_at END) AS last FROM setup_samples",
   );
   return {
     samples: counts?.total ?? 0,
     resolved: counts?.resolved ?? 0,
     pending: counts?.pending ?? 0,
+    untracked: counts?.untracked ?? 0,
     required: STRICT.minComparables,
     horizonMin: STRICT.outcomeHorizonMin,
     firstAt: counts?.first ?? null,
@@ -57,35 +58,83 @@ export function evidenceStats(): EvidenceStats {
 function recordSample(t: Token, now: number) {
   const recent = one('SELECT 1 FROM setup_samples WHERE mint = ? AND taken_at > ?', t.mint, now - SAMPLE_COOLDOWN_MS);
   if (recent || !(t.price > 0)) return;
-  run('INSERT INTO setup_samples (id, mint, symbol, taken_at, score, risk, entry_price) VALUES (?, ?, ?, ?, ?, ?, ?)', uid('smp_'), t.mint, t.symbol, now, t.score, t.riskScore, t.price);
+  // The entry itself is the first reading of the path: 0% up, 0% down, at the entry price.
+  run(
+    'INSERT INTO setup_samples (id, mint, symbol, taken_at, score, risk, entry_price, points, last_price, last_at, max_up_pct, max_dd_pct) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, 0)',
+    uid('smp_'),
+    t.mint,
+    t.symbol,
+    now,
+    t.score,
+    t.riskScore,
+    t.price,
+    t.price,
+    now,
+  );
+  // Pin it straight away, so the monitor keeps polling it for the full horizon.
+  refreshPinned();
   log.info('verify', `outcome tracker: recorded setup $${t.symbol} (score ${t.score}, risk ${t.riskScore})`);
 }
 
-/** Resolves setups whose horizon has elapsed using the recorded price path. */
-async function resolveSamples() {
-  const due = all<{ id: string; mint: string; taken_at: number; entry_price: number }>("SELECT id, mint, taken_at, entry_price FROM setup_samples WHERE status = 'pending' AND taken_at <= ? LIMIT 50", Date.now() - HORIZON_MS);
+/**
+ * Records one reading against every pending sample of this mint. Called on each transition, which
+ * is every poll — the path is accumulated as it happens instead of being read back from the
+ * monitor's history, which no longer holds the token by the time the horizon elapses.
+ */
+function trackSample(t: Token, now: number) {
+  if (!(t.price > 0)) return;
+  run(
+    `UPDATE setup_samples
+        SET points = points + 1,
+            last_price = ?,
+            last_at = ?,
+            max_up_pct = MAX(max_up_pct, (? / entry_price - 1) * 100),
+            max_dd_pct = MIN(max_dd_pct, (? / entry_price - 1) * 100)
+      WHERE status = 'pending' AND mint = ? AND entry_price > 0 AND taken_at <= ? AND taken_at > ?`,
+    t.price,
+    now,
+    t.price,
+    t.price,
+    t.mint,
+    now,
+    now - HORIZON_MS - 60_000,
+  );
+}
+
+/** Scores setups whose horizon has elapsed from the path they accumulated. */
+function resolveSamples() {
+  const due = all<{ id: string; symbol: string; taken_at: number; entry_price: number; points: number; last_price: number | null; last_at: number | null; max_up_pct: number | null; max_dd_pct: number | null }>(
+    "SELECT id, symbol, taken_at, entry_price, points, last_price, last_at, max_up_pct, max_dd_pct FROM setup_samples WHERE status = 'pending' AND taken_at <= ? LIMIT 50",
+    Date.now() - HORIZON_MS,
+  );
   for (const s of due) {
-    const t = monitor.get(s.mint) ?? (await monitor.lookup(s.mint).catch(() => undefined));
-    const end = s.taken_at + HORIZON_MS;
-    const path = (t?.history ?? []).filter((h) => h.t >= s.taken_at && h.t <= end + 60_000 && h.price > 0);
-    // Exit = the last recorded price at or before the horizon; without a path we cannot score it honestly.
-    const exit = path.length ? path[path.length - 1].price : null;
-    if (!exit || !t || path.length < 3) {
+    const r = resolveOutcome({
+      takenAt: s.taken_at,
+      entryPrice: s.entry_price,
+      points: s.points,
+      lastPrice: s.last_price,
+      lastAt: s.last_at,
+      maxUpPct: s.max_up_pct ?? 0,
+      maxDrawdownPct: s.max_dd_pct ?? 0,
+    });
+    if (r.status === 'untracked') {
       run("UPDATE setup_samples SET status = 'untracked', resolved_at = ? WHERE id = ?", Date.now(), s.id);
+      log.warn('verify', `outcome tracker: $${s.symbol} not measurable — ${r.reason}`);
       continue;
     }
-    const max = Math.max(...path.map((p) => p.price));
-    const min = Math.min(...path.map((p) => p.price));
     run(
       "UPDATE setup_samples SET status = 'resolved', resolved_at = ?, exit_price = ?, return_pct = ?, max_up_pct = ?, max_dd_pct = ? WHERE id = ?",
       Date.now(),
-      exit,
-      (exit / s.entry_price - 1) * 100,
-      (max / s.entry_price - 1) * 100,
-      (min / s.entry_price - 1) * 100,
+      r.exitPrice,
+      r.returnPct,
+      r.maxUpPct,
+      r.maxDrawdownPct,
       s.id,
     );
+    log.info('verify', `outcome tracker: $${s.symbol} resolved ${r.returnPct >= 0 ? '+' : ''}${r.returnPct.toFixed(1)}% (peak ${r.maxUpPct.toFixed(1)}%)`);
   }
+  // Releases the pins of everything just resolved, and of any sample whose window has passed.
+  refreshPinned();
   if (due.length) loadSamples();
 }
 
@@ -139,6 +188,7 @@ function onTransition(prev: Token, next: Token) {
   const now = Date.now();
   if (now - (lastVerified.get(next.id) ?? 0) < VERIFY_THROTTLE_MS && next.verify?.status !== 'TRADEABLE') return;
   lastVerified.set(next.id, now);
+  trackSample(next, now);
   const v = verify(next);
   const summary = summarizeVerification(v);
   const prevStatus = prev.verify?.status ?? next.verify?.status;
@@ -170,7 +220,13 @@ export function startVerification() {
     }
   });
   timers = [
-    setInterval(() => void resolveSamples().catch((e: unknown) => log.warn('verify', 'resolve failed', e)), 60_000),
+    setInterval(() => {
+      try {
+        resolveSamples();
+      } catch (e: unknown) {
+        log.warn('verify', 'resolve failed', e);
+      }
+    }, 60_000),
     setInterval(() => {
       if (lastVerified.size > 20_000) lastVerified.clear();
     }, 3_600_000),

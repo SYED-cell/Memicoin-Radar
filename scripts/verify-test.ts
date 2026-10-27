@@ -6,7 +6,7 @@ import { buildLevelsPlan } from '../shared/levels.ts';
 import { toCandles } from '../shared/candles.ts';
 import { cleanMeta, createToken, evaluate } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
-import { formatVerifiedTelegram, isTrackableSetup, STRICT, verifyToken, type OutcomeSample } from '../shared/verification.ts';
+import { formatVerifiedTelegram, isTrackableSetup, resolveOutcome, STRICT, verifyToken, type OutcomeSample, type SamplePath } from '../shared/verification.ts';
 
 let failures = 0;
 const check = (name: string, cond: boolean, extra?: unknown) => {
@@ -252,6 +252,50 @@ check('ordinary names survive untouched', cleanMeta('Good Coin', 40) === 'Good C
 check('non-latin names survive', cleanMeta('\u975E\u51E1\u4EBA\u751F', 40) === '\u975E\u51E1\u4EBA\u751F');
 check('length is still capped', cleanMeta('x'.repeat(50), 14).length === 14);
 check('nothing in gives empty out', cleanMeta(undefined, 14) === '');
+
+
+// The outcome tracker went 88% untracked in production without a single error being logged: the
+// monitor stopped polling quiet tokens, so by the horizon there was no path left to measure. These
+// checks fail loudly if a sample that WAS watched for its full hour stops being scored.
+{
+  const HOUR = STRICT.outcomeHorizonMin * 60_000;
+  const watched = (over: Record<string, unknown> = {}): SamplePath => ({
+    takenAt: now - HOUR,
+    entryPrice: 100,
+    points: 40,
+    lastPrice: 150,
+    lastAt: now,
+    maxUpPct: 80,
+    maxDrawdownPct: -10,
+    ...over,
+  });
+
+  const good = resolveOutcome(watched());
+  check('a setup watched for its full horizon resolves', good.status === 'resolved', good);
+  check('its return is measured from entry to exit', good.status === 'resolved' && Math.abs(good.returnPct - 50) < 1e-9, good);
+  check('the peak and drawdown it accumulated are kept', good.status === 'resolved' && good.maxUpPct === 80 && good.maxDrawdownPct === -10, good);
+
+  // The three ways a sample is genuinely not measurable. Each must be refused, not guessed at.
+  const thin = resolveOutcome(watched({ points: 2 }));
+  check('too few readings is untracked, not scored', thin.status === 'untracked', thin);
+  const shortPath = resolveOutcome(watched({ lastAt: now - HOUR + 5 * MIN }));
+  check('a path covering 5 of 60 min is untracked', shortPath.status === 'untracked', shortPath);
+  const noExit = resolveOutcome(watched({ lastPrice: null }));
+  check('no exit price is untracked', noExit.status === 'untracked', noExit);
+
+  // A loss must be recorded as a loss — not dropped, which would bias the evidence base upward.
+  const loser = resolveOutcome(watched({ lastPrice: 40, maxUpPct: 5, maxDrawdownPct: -62 }));
+  check('a losing setup still resolves', loser.status === 'resolved' && loser.returnPct === -60, loser);
+
+  // Exactly the LUCIA case: ran to +162% and closed flat. The peak must survive the measurement,
+  // because the gap between peak and exit is the whole argument for a trailing exit.
+  const roundTrip = resolveOutcome(watched({ lastPrice: 98.7, maxUpPct: 162.2, maxDrawdownPct: -7.4 }));
+  check(
+    'a round trip keeps both its peak and its flat close',
+    roundTrip.status === 'resolved' && roundTrip.maxUpPct === 162.2 && Math.abs(roundTrip.returnPct + 1.3) < 1e-9,
+    roundTrip,
+  );
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll verification checks passed');
 process.exit(failures ? 1 : 0);
