@@ -14,6 +14,7 @@ import { startBilling, stopBilling } from './services/billing.ts';
 import { startSse, stopSse } from './services/sse.ts';
 import { startTelegram, stopTelegram } from './services/telegram.ts';
 import { startTrading, stopTrading } from './services/trading.ts';
+import { startBot, stopBot } from './services/tradingBot.ts';
 import { startVerification, stopVerification } from './services/verification.ts';
 import { refreshPinned } from './services/userData.ts';
 
@@ -107,6 +108,7 @@ async function main() {
   startAlerts();
   startBilling();
   startTrading();
+  startBot();
   startVerification();
   refreshPinned();
   stopMaintenance = startMaintenance((sql, ...p) => run(sql, ...p), (msg) => log.warn('db', msg));
@@ -122,6 +124,7 @@ function shutdown(signal: string) {
   stopAlerts();
   stopBilling();
   stopTrading();
+  stopBot();
   stopVerification();
   stopTelegram();
   stopMaintenance?.();

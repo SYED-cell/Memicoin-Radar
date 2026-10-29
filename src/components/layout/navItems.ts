@@ -56,6 +56,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Activity',
     items: [
       { to: '/trade', label: 'Paper Trading', icon: ArrowLeftRight },
+      { to: '/bot', label: 'Trading Bot', icon: Bot },
       { to: '/portfolio', label: 'Portfolio', icon: PieChart },
     ],
   },

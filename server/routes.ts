@@ -14,6 +14,7 @@ import { addClient } from './services/sse.ts';
 import { evidenceStats, verify } from './services/verification.ts';
 import { formatVerifiedTelegram } from '../shared/verification.ts';
 import * as billing from './services/billing.ts';
+import * as bot from './services/tradingBot.ts';
 import * as telegram from './services/telegram.ts';
 import * as trading from './services/trading.ts';
 import { addWatch, clearWatch, DEFAULT_SETTINGS, getSettings, getWatchlist, invalidateUserCaches, removeWatch, saveSettings } from './services/userData.ts';
@@ -316,6 +317,21 @@ router.get('/api/export/tokens.csv', requireAuth, (ctx) => {
   });
   ctx.res.end(body);
   return undefined; // response already written
+});
+
+/* ───────────────────────── Trading bot (paper) ───────────────────────── */
+
+router.get('/api/bot', requireAuth, (ctx) => ({
+  settings: bot.getBotSettings(ctx.userId!),
+  plans: bot.listPlans(ctx.userId!),
+  pro: billing.isPro(ctx.userId!),
+}));
+
+router.put('/api/bot', requireAuth, async (ctx) => {
+  const body = (await ctx.body()) as Partial<bot.BotSettings>;
+  // Switching it on is a Pro action; everything else can be configured while it sits idle.
+  if (body.enabled && !billing.isPro(ctx.userId!)) throw new HttpError(402, 'The trading bot is part of Pro', 'pro_required');
+  return { settings: bot.saveBotSettings(ctx.userId!, body) };
 });
 
 router.get('/api/settings', requireAuth, (ctx) => ({ settings: getSettings(ctx.userId!) }));

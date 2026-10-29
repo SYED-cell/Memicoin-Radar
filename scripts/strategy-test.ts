@@ -2,7 +2,7 @@
  * Checks the trading rules. Usage: node scripts/strategy-test.ts
  * No network, no database — just the arithmetic that decides size, refusal and exits.
  */
-import { buildExits, DEFAULT_STRATEGY, disqualify, evaluateStrategy, nextAction, sizePosition } from '../shared/strategy.ts';
+import { buildExits, DEFAULT_STRATEGY, disqualify, evaluateStrategy, inPriceTerms, nextAction, sizePosition } from '../shared/strategy.ts';
 import type { Token, TradePlan } from '../shared/types.ts';
 
 let failures = 0;
@@ -139,6 +139,32 @@ check('every reason is collected, not just the first', disqualify(token({ signal
 
   check('a closed position does nothing', nextAction(open({ remainingQty: 0 }), exits, 10, 0, 60).type === 'hold');
   check('a filled rung is not taken twice', nextAction(open({ filled: [0], remainingQty: 600 }), exits, 125, 0, 60).type === 'hold');
+}
+
+
+/* ── Units ─────────────────────────────────────────────────────────────────── */
+// The levels plan is in market caps and the bot sees per-token prices. Mixing them stops every
+// trade out on its first tick, silently, because the arithmetic is valid and only the units are
+// wrong. This happened in a live run before the conversion existed.
+{
+  const mcapPlan = plan({ entryLow: 18_000, entryHigh: 20_000, stop: 16_000, tp1: 24_000, tp2: 30_000, tp3: 40_000,
+    entries: [{ label: 'Entry 1', price: 20_000, allocationPct: 55, reason: '' }, { label: 'Entry 2', price: 18_400, allocationPct: 45, reason: '' }] });
+  const priced = inPriceTerms(mcapPlan, 20_000, 0.00002);
+
+  check('a market-cap plan converts to price terms', priced !== null);
+  if (priced) {
+    check('the stop lands below the live price, not astronomically above it', priced.stop < 0.00002, priced.stop);
+    check('the entry converts to the live price', Math.abs(priced.entries[0].price - 0.00002) < 1e-12, priced.entries[0].price);
+    check('targets stay above the entry', priced.tp1 > priced.entries[0].price && priced.tp3 > priced.tp1);
+    check('ratios are unit-free and unchanged', priced.stopPct === mcapPlan.stopPct && priced.rr === mcapPlan.rr);
+    check('the ordering survives conversion', priced.stop < priced.entryLow && priced.entryLow < priced.entryHigh);
+    // The bug in one line: unconverted, the stop is "above" the price and the position dies at once.
+    check('unconverted, that same stop would fire immediately', 0.00002 <= mcapPlan.stop);
+    check('converted, it does not', !(0.00002 <= priced.stop));
+  }
+
+  check('a coin with no market cap cannot be converted', inPriceTerms(mcapPlan, 0, 0.00002) === null);
+  check('a coin with no price cannot be converted', inPriceTerms(mcapPlan, 20_000, 0) === null);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll strategy checks passed');

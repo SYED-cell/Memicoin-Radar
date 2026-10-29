@@ -137,9 +137,15 @@ export function sizePosition(equityUsd: number, entry: number, stop: number, liq
 /**
  * The exit ladder.
  *
- * Most of the position comes off at the first target, because on a meme coin the first move is the
- * one most likely to exist. Taking that much early is what lets the stop go to break-even, which
- * is the single rule that turns a bad run survivable: after TP1 the trade can no longer lose money.
+ * Most of the position comes off at the first target, because on a coin this thin the first move
+ * is the one most likely to exist. Taking that much early then lets the stop move up to the entry,
+ * which caps what a reversal costs on the rest.
+ *
+ * It does NOT make the trade risk-free, and it is worth being exact about why. A stop is a price
+ * we watch, not a price we are guaranteed. In testing, a position whose stop had moved to the
+ * entry at 2.4464e-5 filled at 1.8846e-5 — the price gapped straight through between two updates
+ * and the remainder sold 23% below the stop. "Break-even" means the order rests at the entry, not
+ * that the trade can no longer lose.
  */
 export function buildExits(plan: TradePlan): ExitRule[] {
   return [
@@ -148,11 +154,39 @@ export function buildExits(plan: TradePlan): ExitRule[] {
       price: plan.tp1,
       sharePct: 40,
       thenStop: 'break-even',
-      reason: 'Take the move that is most likely to happen, then the trade cannot lose',
+      reason: 'Take the move most likely to exist, then lift the stop to the entry to cap the rest',
     },
     { label: 'Target 2', price: plan.tp2, sharePct: 35, thenStop: 'trail-to-previous', reason: 'Trail the stop up behind the last rung' },
     { label: 'Target 3', price: plan.tp3, sharePct: 25, thenStop: 'unchanged', reason: 'The tail, if it runs' },
   ];
+}
+
+/**
+ * A plan expressed in market caps, converted to per-token prices.
+ *
+ * `buildLevelsPlan` reads a coin's recorded market caps, so every number it returns is a market
+ * cap. A bot that compares those to a per-token price will stop out on the first tick of every
+ * trade it ever opens — a stop of 12,990 is "above" a price of 0.00001536 — and it will do it
+ * silently, because the arithmetic is valid and only the units are wrong.
+ *
+ * Scaling by price/marketCap rather than dividing by supply keeps it correct when supply is
+ * missing or stale, which it often is for a coin minutes old.
+ */
+export function inPriceTerms(plan: TradePlan, marketCap: number, price: number): TradePlan | null {
+  if (!(marketCap > 0) || !(price > 0)) return null;
+  const scale = price / marketCap;
+  const at = (v: number) => v * scale;
+  return {
+    ...plan,
+    entryLow: at(plan.entryLow),
+    entryHigh: at(plan.entryHigh),
+    entries: plan.entries.map((e) => ({ ...e, price: at(e.price) })),
+    stop: at(plan.stop),
+    tp1: at(plan.tp1),
+    tp2: at(plan.tp2),
+    tp3: at(plan.tp3),
+    // stopPct and rr are ratios: they are the same number in either unit.
+  };
 }
 
 /* ── Managing a position that is already open ─────────────────────────────── */

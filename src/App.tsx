@@ -27,6 +27,7 @@ const lazyPage = <P,>(load: () => Promise<{ default: ComponentType<P> }>) =>
   );
 
 const SplashPage = lazyPage(() => import('./pages/SplashPage'));
+const TradingBotPage = lazyPage(() => import('./pages/TradingBotPage'));
 const AuthPage = lazyPage(() => import('./pages/AuthPage'));
 const VerifyEmailPage = lazyPage(() => import('./pages/VerifyEmailPage'));
 const ResetPasswordPage = lazyPage(() => import('./pages/ResetPasswordPage'));
@@ -88,6 +89,7 @@ export default function App() {
                           <Route path="/alerts/:id" element={<AlertDetailsPage />} />
                           <Route path="/watchlist" element={<WatchlistPage />} />
                           <Route path="/trade" element={<PaperTradingPage />} />
+                          <Route path="/bot" element={<TradingBotPage />} />
                           <Route path="/portfolio" element={<PortfolioPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
                           <Route path="/settings/telegram" element={<TelegramPage />} />

@@ -75,7 +75,7 @@ async function priceFor(mint: string): Promise<Token> {
   return t;
 }
 
-function equityValue(userId: string, cash: number): number {
+export function equityValue(userId: string, cash: number): number {
   return cash + all<PositionRow>('SELECT * FROM positions WHERE user_id = ?', userId).reduce((s, p) => s + p.quantity * (monitor.get(p.mint)?.price ?? p.avg_entry), 0);
 }
 

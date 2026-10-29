@@ -201,4 +201,38 @@ export const MIGRATIONS: string[] = [
   // without the token's state at fill time the account can show a profit but never say which
   // setups produced it, so no rule the app publishes can ever be checked against its own trades.
   `ALTER TABLE transactions ADD COLUMN context TEXT;`,
+  // v7: the paper trading bot. Settings per account, and one row per position it is running so
+  // the exit ladder survives a restart — a bot that forgot which rungs had filled would sell the
+  // same share twice and move a stop backwards.
+  `CREATE TABLE bot_settings (
+     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+     enabled INTEGER NOT NULL DEFAULT 0,
+     risk_pct REAL NOT NULL DEFAULT 2,
+     max_positions INTEGER NOT NULL DEFAULT 3,
+     max_position_pct REAL NOT NULL DEFAULT 20,
+     min_score INTEGER NOT NULL DEFAULT 60,
+     max_risk INTEGER NOT NULL DEFAULT 70,
+     time_stop_min INTEGER NOT NULL DEFAULT 60,
+     updated_at INTEGER NOT NULL
+   );
+   CREATE TABLE bot_plans (
+     id TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     mint TEXT NOT NULL,
+     symbol TEXT NOT NULL,
+     status TEXT NOT NULL,
+     entry REAL NOT NULL,
+     original_qty REAL NOT NULL,
+     stop REAL NOT NULL,
+     initial_stop REAL NOT NULL,
+     exits TEXT NOT NULL,
+     filled TEXT NOT NULL DEFAULT '[]',
+     time_stop_min INTEGER NOT NULL,
+     opened_at INTEGER NOT NULL,
+     closed_at INTEGER,
+     close_cause TEXT,
+     realized_pnl REAL NOT NULL DEFAULT 0
+   );
+   CREATE INDEX bot_plans_user ON bot_plans(user_id, opened_at DESC);
+   CREATE UNIQUE INDEX bot_plans_open ON bot_plans(user_id, mint) WHERE status = 'open';`,
 ];
