@@ -4,7 +4,7 @@
 import { curveMarket, decodeCurve } from '../shared/bondingCurve.ts';
 import { buildLevelsPlan } from '../shared/levels.ts';
 import { toCandles } from '../shared/candles.ts';
-import { cleanMeta, createToken, evaluate } from '../shared/tokenService.ts';
+import { cleanMeta, createToken, evaluate, tradeContext } from '../shared/tokenService.ts';
 import type { HistoryPoint, Token } from '../shared/types.ts';
 import { formatVerifiedTelegram, isTrackableSetup, resolveOutcome, STRICT, verifyToken, type OutcomeSample, type SamplePath } from '../shared/verification.ts';
 
@@ -295,6 +295,25 @@ check('nothing in gives empty out', cleanMeta(undefined, 14) === '');
     roundTrip.status === 'resolved' && roundTrip.maxUpPct === 162.2 && Math.abs(roundTrip.returnPct + 1.3) < 1e-9,
     roundTrip,
   );
+}
+
+// ── Trade context ──────────────────────────────────────────────────────────────
+// Recorded at fill time and never recoverable afterwards, so the shape is checked here rather
+// than discovered to be wrong months later when someone first tries to group trades by setup.
+{
+  const c = tradeContext(t, now);
+  check('context carries the scores the decision was made on', c.score === t.score && c.risk === t.riskScore && c.signal === t.signal && c.phase === t.phase, c);
+  check('context carries the market state at fill', c.marketCap === t.marketCap && c.liquidity === t.liquidity && c.holders === t.holders, c);
+  check('token age is recorded in minutes', c.ageMin === 90, c.ageMin);
+  // A trade can fill before the strict filter has ever run on that token; that is a real state
+  // and must read as "not verified", never as a pass.
+  check('no verification yet → verify is null, not a pass', c.verify === null && c.verifyPassed === null, c);
+
+  const verified = tradeContext({ ...t, verify: { status: 'TRADEABLE', passed: 14, total: 14, reason: 'ok', checkedAt: now } }, now);
+  check('a verified fill records the verdict and the count', verified.verify === 'TRADEABLE' && verified.verifyPassed === 14, verified);
+
+  // Stored as JSON, so it has to survive the round trip the database puts it through.
+  check('context survives a JSON round trip', JSON.stringify(JSON.parse(JSON.stringify(c))) === JSON.stringify(c));
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll verification checks passed');

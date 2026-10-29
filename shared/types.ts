@@ -449,6 +449,31 @@ export interface Position {
 export type TradeSide = 'buy' | 'sell';
 export type TradeReason = 'manual' | 'stop-loss' | 'take-profit';
 
+/**
+ * What the token looked like at the moment a trade filled.
+ *
+ * A transaction on its own records what happened — bought here, sold there, made or lost this
+ * much. It does not record the setup behind the decision, so the paper account can say it is up
+ * without ever saying which setups did the work. This is the missing half: enough of the token's
+ * state to group trades afterwards by score band, risk band, phase or verification status and ask
+ * which of them actually paid.
+ */
+export interface TradeContext {
+  score: number;
+  risk: number;
+  signal: Signal;
+  confidence: number;
+  phase: Phase;
+  /** Strict-filter verdict at fill time, when one had been computed. */
+  verify: VerifyStatus | null;
+  verifyPassed: number | null;
+  marketCap: number;
+  liquidity: number;
+  holders: number;
+  /** Token age at fill, in minutes. */
+  ageMin: number;
+}
+
 export interface Transaction {
   id: string;
   tokenId: string;
@@ -461,6 +486,7 @@ export interface Transaction {
   realizedPnl?: number;
   reason?: TradeReason;
   createdAt: number;
+  context?: TradeContext;
 }
 
 export interface PortfolioPoint {

@@ -1,5 +1,6 @@
 import { uid } from '../../shared/random.ts';
-import type { Alert, Position, Token, TradeReason, TradeSide, TradingState, Transaction } from '../../shared/types.ts';
+import { tradeContext } from '../../shared/tokenService.ts';
+import type { Alert, Position, Token, TradeContext, TradeReason, TradeSide, TradingState, Transaction } from '../../shared/types.ts';
 import { all, one, run, tx } from '../db.ts';
 import { HttpError } from '../lib/http.ts';
 import { log } from '../lib/log.ts';
@@ -46,7 +47,7 @@ const toPosition = (r: PositionRow): Position => ({
 export function getPortfolio(userId: string): TradingState {
   const p = ensurePortfolio(userId);
   const positions = all<PositionRow>('SELECT * FROM positions WHERE user_id = ? ORDER BY opened_at', userId).map(toPosition);
-  const transactions = all<{ id: string; mint: string; symbol: string; side: TradeSide; quantity: number; price: number; total: number; fee: number; realized_pnl: number | null; reason: TradeReason; created_at: number }>(
+  const transactions = all<{ id: string; mint: string; symbol: string; side: TradeSide; quantity: number; price: number; total: number; fee: number; realized_pnl: number | null; reason: TradeReason; created_at: number; context: string | null }>(
     'SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 300',
     userId,
   ).map<Transaction>((r) => ({
@@ -61,6 +62,7 @@ export function getPortfolio(userId: string): TradingState {
     realizedPnl: r.realized_pnl ?? undefined,
     reason: r.reason,
     createdAt: r.created_at,
+    context: r.context ? (JSON.parse(r.context) as TradeContext) : undefined,
   }));
   const equity = all<{ t: number; value: number }>('SELECT t, value FROM equity WHERE user_id = ? ORDER BY t DESC LIMIT 500', userId).reverse();
   return { startingBalance: p.starting_balance, cash: p.cash, positions, transactions, equity };
@@ -90,6 +92,9 @@ export interface ExecuteInput {
 export async function execute(userId: string, input: ExecuteInput): Promise<Transaction> {
   const token = await priceFor(input.mint);
   const execPrice = token.price * (input.side === 'buy' ? 1 + SLIPPAGE : 1 - SLIPPAGE);
+  // Recorded on sells too: the state at exit is what says whether a stop fired on a setup that
+  // had already turned, or on one that was still fine and merely noisy.
+  const context = tradeContext(token);
   const settings = getSettings(userId).trading;
 
   const txn = tx(() => {
@@ -156,9 +161,10 @@ export async function execute(userId: string, input: ExecuteInput): Promise<Tran
       realizedPnl: input.side === 'sell' && pos ? (execPrice - pos.avg_entry) * qty - fee : undefined,
       reason: input.reason ?? 'manual',
       createdAt: Date.now(),
+      context,
     };
     run(
-      'INSERT INTO transactions (id, user_id, mint, symbol, side, quantity, price, total, fee, realized_pnl, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO transactions (id, user_id, mint, symbol, side, quantity, price, total, fee, realized_pnl, reason, created_at, context) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       t.id,
       userId,
       t.tokenId,
@@ -171,6 +177,7 @@ export async function execute(userId: string, input: ExecuteInput): Promise<Tran
       t.realizedPnl ?? null,
       t.reason ?? 'manual',
       t.createdAt,
+      JSON.stringify(context),
     );
     return t;
   });

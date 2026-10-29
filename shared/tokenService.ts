@@ -1,4 +1,4 @@
-import type { DataSource, HistoryPoint, LaunchEvent, MigrationEvent, Token, TokenMarketData, Trade, TradeEvent } from './types.ts';
+import type { DataSource, HistoryPoint, LaunchEvent, MigrationEvent, Token, TokenMarketData, Trade, TradeContext, TradeEvent } from './types.ts';
 import type { CurveMarket } from './bondingCurve.ts';
 import { hashString } from './random.ts';
 import { explainChange } from './aiService.ts';
@@ -360,4 +360,27 @@ export function tokenFromMarket(m: TokenMarketData, source: DataSource, now = Da
 /** Trims a token for persistence. */
 export function compactToken(t: Token): Token {
   return { ...t, history: t.history.slice(-200), trades: t.trades.slice(0, 30), scoreHistory: t.scoreHistory.slice(-80) };
+}
+
+/**
+ * Snapshot of the setup behind a trade, taken at fill time.
+ *
+ * Pure and separate from the write path so the recorded shape can be checked without a database.
+ * Everything here is already on the token when a trade executes; none of it is recoverable
+ * afterwards, because the token keeps moving and the old state is not kept anywhere.
+ */
+export function tradeContext(t: Token, now = Date.now()): TradeContext {
+  return {
+    score: t.score,
+    risk: t.riskScore,
+    signal: t.signal,
+    confidence: t.confidence,
+    phase: t.phase,
+    verify: t.verify?.status ?? null,
+    verifyPassed: t.verify?.passed ?? null,
+    marketCap: t.marketCap,
+    liquidity: t.liquidity,
+    holders: t.holders,
+    ageMin: Math.round((now - t.createdAt) / 60_000),
+  };
 }

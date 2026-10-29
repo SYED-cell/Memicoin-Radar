@@ -197,4 +197,8 @@ export const MIGRATIONS: string[] = [
   `ALTER TABLE setup_samples ADD COLUMN points INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE setup_samples ADD COLUMN last_price REAL;
    ALTER TABLE setup_samples ADD COLUMN last_at INTEGER;`,
+  // v6: the setup behind each paper trade, as JSON. Transactions already record what happened;
+  // without the token's state at fill time the account can show a profit but never say which
+  // setups produced it, so no rule the app publishes can ever be checked against its own trades.
+  `ALTER TABLE transactions ADD COLUMN context TEXT;`,
 ];
